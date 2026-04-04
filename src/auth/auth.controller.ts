@@ -1,7 +1,9 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Query,
   UseGuards,
   Request,
   HttpCode,
@@ -19,6 +21,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // 1. Реєстрація
   @Post('register')
   @ApiOperation({ summary: 'Register new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
@@ -27,6 +30,15 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
+  // 2. Верифікація email
+  @Get('verify-email')
+  @ApiOperation({ summary: 'Verify email address' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  // 3. Логін
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
@@ -36,6 +48,7 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  // 4. Оновлення токену
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
@@ -43,6 +56,7 @@ export class AuthController {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
+  // 5. Вихід
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -52,6 +66,7 @@ export class AuthController {
     return this.authService.logout(req.user.userId, refreshTokenDto.refreshToken);
   }
 
+  // 6. Забули пароль
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
@@ -59,9 +74,10 @@ export class AuthController {
     return this.authService.forgotPassword(email);
   }
 
+  // 7. Скидання паролю
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password' })
+  @ApiOperation({ summary: 'Reset password with token' })
   async resetPassword(
     @Body('token') token: string,
     @Body('newPassword') newPassword: string,
@@ -69,11 +85,12 @@ export class AuthController {
     return this.authService.resetPassword(token, newPassword);
   }
 
+  // 8. Зміна паролю (авторизований)
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Change password' })
+  @ApiOperation({ summary: 'Change password (authenticated)' })
   async changePassword(
     @Request() req,
     @Body('oldPassword') oldPassword: string,

@@ -1,0 +1,345 @@
+### ============================================
+### AUTH
+### ============================================
+
+### 1. Реєстрація
+POST http://localhost:3001/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Тест",
+  "lastName": "Користувач",
+  "email": "test2@gmail.com",
+  "password": "Test1234!",
+  "role": "job_seeker"
+}
+
+### 2. Верифікація email (токен з відповіді реєстрації)
+GET http://localhost:3001/auth/verify-email?token=ТОКЕН_ТУТ
+
+### 3. Логін
+# @name login
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "test2@gmail.com",
+  "password": "Test1234!"
+}
+
+### 4. Оновлення токену
+POST http://localhost:3001/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.refreshToken}}"
+}
+
+### 5. Зміна паролю
+POST http://localhost:3001/auth/change-password
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "oldPassword": "Test1234!",
+  "newPassword": "NewTest1234!"
+}
+
+### 6. Забули пароль
+POST http://localhost:3001/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "test2@gmail.com"
+}
+
+### 7. Вихід
+POST http://localhost:3001/auth/logout
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "refreshToken": "{{login.response.body.refreshToken}}"
+}
+
+### ============================================
+### USERS
+### ============================================
+
+### 8. Отримати свій профіль
+GET http://localhost:3001/users/profile
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 9. Оновити профіль
+PUT http://localhost:3001/users/profile
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "firstName": "Оновлений",
+  "lastName": "Користувач",
+  "country": "Ukraine",
+  "city": "Київ",
+  "summary": "Шукаю роботу розробника"
+}
+
+### 10. Отримати резюме
+GET http://localhost:3001/users/resume
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 11. Оновити резюме
+PUT http://localhost:3001/users/resume
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "languages": ["Ukrainian", "English"],
+  "preferredCountries": ["Ukraine", "Poland"],
+  "preferredJobTypes": ["full_time", "remote"],
+  "education": [
+    {
+      "institution": "КПІ",
+      "degree": "Бакалавр",
+      "field": "Комп'ютерні науки",
+      "startDate": "2020-09-01",
+      "endDate": "2024-06-01"
+    }
+  ]
+}
+
+### 12. Статистика користувача
+GET http://localhost:3001/users/statistics
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### ============================================
+### SKILLS
+### ============================================
+
+### 13. Логін як адмін (спочатку зареєструйте адміна)
+# @name adminLogin
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@gmail.com",
+  "password": "Admin1234!"
+}
+
+### 14. Створити категорію навичок (admin)
+# @name createCategory
+POST http://localhost:3001/skills/categories
+Content-Type: application/json
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+{
+  "name": "Frontend",
+  "icon": "💻"
+}
+
+### 15. Створити навичку (admin)
+# @name createSkill
+POST http://localhost:3001/skills
+Content-Type: application/json
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+{
+  "name": "JavaScript",
+  "categoryId": "{{createCategory.response.body.id}}"
+}
+
+### 16. Отримати всі навички
+GET http://localhost:3001/skills
+
+### 17. Популярні навички
+GET http://localhost:3001/skills/popular
+
+### 18. Всі категорії
+GET http://localhost:3001/skills/categories
+
+### ============================================
+### COMPANIES
+### ============================================
+
+### 19. Логін як роботодавець
+# @name employerLogin
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "employer@gmail.com",
+  "password": "Test1234!"
+}
+
+### 20. Створити компанію
+# @name createCompany
+POST http://localhost:3001/companies
+Content-Type: application/json
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+{
+  "name": "Tech Company UA",
+  "description": "Інноваційна IT компанія",
+  "shortDescription": "IT компанія",
+  "website": "https://techcompany.ua",
+  "email": "info@techcompany.ua",
+  "industry": "IT",
+  "size": "11-50",
+  "foundedYear": 2020
+}
+
+### 21. Отримати всі компанії
+GET http://localhost:3001/companies
+
+### 22. Отримати мою компанію
+GET http://localhost:3001/companies/my
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+### 23. Оновити компанію
+PUT http://localhost:3001/companies/{{createCompany.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+{
+  "description": "Оновлений опис компанії"
+}
+
+### ============================================
+### JOBS
+### ============================================
+
+### 24. Створити вакансію
+# @name createJob
+POST http://localhost:3001/jobs
+Content-Type: application/json
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+{
+  "title": "Junior JavaScript Developer",
+  "description": "Шукаємо Junior JS розробника",
+  "requirements": "Знання JavaScript, React",
+  "responsibilities": "Розробка фронтенду",
+  "jobType": "full_time",
+  "experienceLevel": "junior",
+  "workFormat": "hybrid",
+  "country": "Ukraine",
+  "city": "Київ",
+  "salaryMin": 1000,
+  "salaryMax": 2000,
+  "salaryCurrency": "USD",
+  "category": "IT"
+}
+
+### 25. Отримати всі вакансії
+GET http://localhost:3001/jobs
+
+### 26. Пошук вакансій з фільтрами
+GET http://localhost:3001/jobs?search=JavaScript&country=Ukraine&jobType=full_time
+
+### 27. Отримати вакансію за ID
+GET http://localhost:3001/jobs/{{createJob.response.body.id}}
+
+### 28. Схожі вакансії
+GET http://localhost:3001/jobs/{{createJob.response.body.id}}/similar
+
+### 29. Зберегти вакансію
+POST http://localhost:3001/jobs/{{createJob.response.body.id}}/save
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 30. Збережені вакансії
+GET http://localhost:3001/jobs/saved
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### ============================================
+### APPLICATIONS
+### ============================================
+
+### 31. Подати заявку
+# @name createApplication
+POST http://localhost:3001/applications
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "jobId": "{{createJob.response.body.id}}",
+  "coverLetter": "Я дуже хочу працювати у вашій компанії",
+  "expectedSalary": 1500,
+  "expectedSalaryCurrency": "USD"
+}
+
+### 32. Мої заявки
+GET http://localhost:3001/applications/my
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 33. Заявки роботодавця
+GET http://localhost:3001/applications/employer
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+### 34. Оновити статус заявки
+PUT http://localhost:3001/applications/{{createApplication.response.body.id}}/status
+Content-Type: application/json
+Authorization: Bearer {{employerLogin.response.body.accessToken}}
+
+{
+  "status": "reviewed",
+  "employerNotes": "Гарний кандидат"
+}
+
+### 35. Відкликати заявку
+PUT http://localhost:3001/applications/{{createApplication.response.body.id}}/withdraw
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### ============================================
+### NOTIFICATIONS
+### ============================================
+
+### 36. Мої сповіщення
+GET http://localhost:3001/notifications
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 37. Кількість непрочитаних
+GET http://localhost:3001/notifications/unread-count
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 38. Позначити всі як прочитані
+PUT http://localhost:3001/notifications/read-all
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### ============================================
+### CHAT
+### ============================================
+
+### 39. Список розмов
+GET http://localhost:3001/chat/conversations
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 40. Непрочитані повідомлення
+GET http://localhost:3001/chat/unread
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### ============================================
+### ADMIN
+### ============================================
+
+### 41. Дашборд адміна
+GET http://localhost:3001/admin/dashboard
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+### 42. Всі користувачі
+GET http://localhost:3001/admin/users
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+### 43. Всі вакансії для модерації
+GET http://localhost:3001/admin/jobs
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+### 44. Всі компанії
+GET http://localhost:3001/admin/companies
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+### 45. Аудит логи
+GET http://localhost:3001/admin/audit-logs
+Authorization: Bearer {{adminLogin.response.body.accessToken}}
+
+### 41. Аналітика (admin)
+GET http://localhost:3001/admin/analytics?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{adminLogin.response.body.accessToken}}

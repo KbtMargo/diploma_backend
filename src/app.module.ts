@@ -29,6 +29,7 @@ import { Notification } from './notifications/entities/notification.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuditLog } from './admin/entities/audit-log.entity';
 import { Message } from './chat/entities/message.entity';
+import { EmailModule } from './common/email/email.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { Message } from './chat/entities/message.entity';
           Notification,
           AuditLog,
           Message,
+          EmailModule,
         ],
         synchronize: configService.get('NODE_ENV') !== 'production',
         logging: configService.get('NODE_ENV') === 'development',

@@ -45,6 +45,9 @@ export class User {
   @Column({ nullable: true })
   avatarUrl: string;
 
+  @Column({ nullable: true })
+  resumeUrl: string;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.JOB_SEEKER })
   role: UserRole;
 
@@ -65,6 +68,20 @@ export class User {
 
   @Column({ default: false })
   isEmailVerified: boolean;
+
+  // Email verification
+  @Column({ nullable: true })
+  emailVerificationToken: string;
+
+  @Column({ nullable: true })
+  emailVerificationExpires: Date;
+
+  // Password reset
+  @Column({ nullable: true })
+  passwordResetToken: string;
+
+  @Column({ nullable: true })
+  passwordResetExpires: Date;
 
   @Column('text', { array: true, nullable: true })
   preferredCountries: string[];
@@ -134,7 +151,4 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @Column({ nullable: true })
-  resumeUrl: string;
 }

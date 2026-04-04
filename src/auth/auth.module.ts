@@ -9,7 +9,8 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from '../users/entities/user.entity';
-import { UsersModule } from '../users/users.module'; // ← додати
+import { UsersModule } from '../users/users.module';
+import { EmailModule } from '../common/email/email.module'; // ← додати
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { UsersModule } from '../users/users.module'; // ← додати
         },
       }),
     }),
-    UsersModule, // ← додати
+    UsersModule,
+    EmailModule, // ← додати
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
