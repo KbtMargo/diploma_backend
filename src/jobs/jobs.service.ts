@@ -49,7 +49,7 @@ export class JobsService {
       employer,
       employerId,
       requiredSkills,
-      status: JobStatus.PENDING,
+      status: JobStatus.ACTIVE,
       publishedAt: new Date(),
       expiresAt: createJobDto.applicationDeadline 
         ? new Date(createJobDto.applicationDeadline)

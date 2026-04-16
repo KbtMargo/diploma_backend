@@ -19,10 +19,12 @@ async function bootstrap() {
     if (!existsSync(fullPath)) mkdirSync(fullPath, { recursive: true });
   });
 
-  // Роздача статичних файлів ← додати
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads',
-  });
+app.useStaticAssets(join(process.cwd(), 'uploads'), {
+  prefix: '/uploads',
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  },
+});
 
   // решта вашого коду без змін...
   app.enableCors({

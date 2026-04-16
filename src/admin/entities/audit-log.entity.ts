@@ -4,7 +4,10 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 export enum AuditAction {
   USER_CREATED = 'user_created',
@@ -35,10 +38,7 @@ export class AuditLog {
   @Column({ nullable: true })
   userEmail: string;
 
-  @Column({
-    type: 'enum',
-    enum: AuditAction,
-  })
+  @Column({ type: 'enum', enum: AuditAction })
   action: AuditAction;
 
   @Column({ nullable: true })
@@ -61,4 +61,8 @@ export class AuditLog {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @ManyToOne(() => User, { nullable: true, eager: false })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 }

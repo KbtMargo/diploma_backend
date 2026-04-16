@@ -131,4 +131,14 @@ export class CreateJobDto {
   @IsOptional()
   @IsUUID('4', { each: true })
   skillIds?: string[];
+
+  @ApiProperty({ required: false })
+@IsBoolean()
+@IsOptional()
+isFeatured?: boolean;
+
+@ApiProperty({ required: false })
+@IsBoolean()
+@IsOptional()
+isUrgent?: boolean;
 }

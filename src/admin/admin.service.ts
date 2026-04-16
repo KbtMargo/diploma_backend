@@ -358,38 +358,35 @@ export class AdminService {
     };
   }
 
-  async getAuditLogs(page: number = 1, limit: number = 10, filters?: any) {
-    const skip = (page - 1) * limit;
-    const query = this.auditLogRepository.createQueryBuilder('log');
+async getAuditLogs(page: number = 1, limit: number = 10, filters?: any) {
+  const skip = (page - 1) * limit;
+  const query = this.auditLogRepository
+    .createQueryBuilder('log')
+    .leftJoinAndSelect('log.user', 'user'); // ← додати
 
-    if (filters?.userId) {
-      query.andWhere('log.userId = :userId', { userId: filters.userId });
-    }
-
-    if (filters?.action) {
-      query.andWhere('log.action = :action', { action: filters.action });
-    }
-
-    if (filters?.entityType) {
-      query.andWhere('log.entityType = :entityType', { entityType: filters.entityType });
-    }
-
-    const [logs, total] = await query
-      .skip(skip)
-      .take(limit)
-      .orderBy('log.createdAt', 'DESC')
-      .getManyAndCount();
-
-    return {
-      data: logs,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  if (filters?.userId) {
+    query.andWhere('log.userId = :userId', { userId: filters.userId });
   }
+
+  if (filters?.action) {
+    query.andWhere('log.action = :action', { action: filters.action });
+  }
+
+  if (filters?.entityType) {
+    query.andWhere('log.entityType = :entityType', { entityType: filters.entityType });
+  }
+
+  const [logs, total] = await query
+    .skip(skip)
+    .take(limit)
+    .orderBy('log.createdAt', 'DESC')
+    .getManyAndCount();
+
+  return {
+    data: logs,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+}
 
   private async logAudit(data: Partial<AuditLog>): Promise<AuditLog> {
     const log = this.auditLogRepository.create(data);
