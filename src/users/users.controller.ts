@@ -102,6 +102,16 @@ export class UsersController {
     return this.usersService.uploadAvatar(req.user.userId, file);
   }
 
+  @Post('resume-file')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('resume'))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload resume PDF' })
+  uploadResume(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.usersService.uploadResume(req.user.userId, file);
+  }
+
   @Post('jobs/:jobId/save')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

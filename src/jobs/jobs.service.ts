@@ -1,345 +1,207 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+// src/jobs/jobs.service.ts
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In, ILike, LessThanOrEqual, MoreThanOrEqual, FindOptionsWhere } from 'typeorm';
-import { Job, JobStatus, JobType, ExperienceLevel, WorkFormat } from './entities/job.entity';
+import { Repository } from 'typeorm';
+import { Job, JobStatus } from './entities/job.entity';
 import { SavedJob } from './entities/saved-job.entity';
-import { Skill } from 'src/skills/entities/skill.entity';
-import { User, UserRole } from 'src/users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { Application } from '../applications/entities/application.entity';
 import { CreateJobDto } from './dto/create-job.dto';
-import { SearchJobsDto } from './dto/search-jobs.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
+import { SearchJobsDto } from './dto/search-jobs.dto';
 
 @Injectable()
 export class JobsService {
   constructor(
     @InjectRepository(Job)
-    private readonly jobRepository: Repository<Job>,
+    private jobsRepository: Repository<Job>,
     @InjectRepository(SavedJob)
-    private readonly savedJobRepository: Repository<SavedJob>,
-    @InjectRepository(Skill)
-    private readonly skillRepository: Repository<Skill>,
+    private savedJobsRepository: Repository<SavedJob>,
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private usersRepository: Repository<User>,
+    @InjectRepository(Application)
+    private applicationsRepository: Repository<Application>,
   ) {}
 
   async create(createJobDto: CreateJobDto, employerId: string): Promise<Job> {
-    const employer = await this.userRepository.findOne({
-      where: { id: employerId },
-    });
-
-    if (!employer) {
-      throw new NotFoundException('Employer not found');
-    }
-
-    // Process skills
-    let requiredSkills: Skill[] = [];
-    if (createJobDto.skillIds && createJobDto.skillIds.length > 0) {
-      requiredSkills = await this.skillRepository.findBy({
-        id: In(createJobDto.skillIds),
-      });
-    }
-
-    const job = this.jobRepository.create({
-      ...createJobDto,
-      employer,
-      employerId,
-      requiredSkills,
-      status: JobStatus.ACTIVE,
-      publishedAt: new Date(),
-      expiresAt: createJobDto.applicationDeadline 
-        ? new Date(createJobDto.applicationDeadline)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
-    });
-
-    return await this.jobRepository.save(job);
+    const job = this.jobsRepository.create({ ...createJobDto, employerId });
+    return this.jobsRepository.save(job);
   }
 
-  async findAll(page: number = 1, limit: number = 10, filters?: SearchJobsDto) {
-    const skip = (page - 1) * limit;
-    const query = this.jobRepository
+  async findAll(page = 1, limit = 10, filters?: SearchJobsDto): Promise<{ data: Job[]; meta: any }> {
+    const query = this.jobsRepository
       .createQueryBuilder('job')
       .leftJoinAndSelect('job.employer', 'employer')
       .leftJoinAndSelect('job.requiredSkills', 'skills')
       .where('job.status = :status', { status: JobStatus.ACTIVE });
 
-    // Apply filters
-    if (filters) {
-      if (filters.search) {
-        query.andWhere(
-          '(job.title ILIKE :search OR job.description ILIKE :search)',
-          { search: `%${filters.search}%` },
-        );
-      }
-
-      if (filters.country) {
-        query.andWhere('job.country ILIKE :country', { country: `%${filters.country}%` });
-      }
-
-      if (filters.city) {
-        query.andWhere('job.city ILIKE :city', { city: `%${filters.city}%` });
-      }
-
-      if (filters.jobType && filters.jobType.length > 0) {
-        query.andWhere('job.jobType IN (:...jobTypes)', { jobTypes: filters.jobType });
-      }
-
-      if (filters.experienceLevel && filters.experienceLevel.length > 0) {
-        query.andWhere('job.experienceLevel IN (:...experienceLevels)', {
-          experienceLevels: filters.experienceLevel,
-        });
-      }
-
-      if (filters.workFormat && filters.workFormat.length > 0) {
-        query.andWhere('job.workFormat IN (:...workFormats)', {
-          workFormats: filters.workFormat,
-        });
-      }
-
-      if (filters.salaryMin) {
-        query.andWhere('job.salaryMin >= :salaryMin', { salaryMin: filters.salaryMin });
-      }
-
-      if (filters.salaryMax) {
-        query.andWhere('job.salaryMax <= :salaryMax', { salaryMax: filters.salaryMax });
-      }
-
-      if (filters.skillIds && filters.skillIds.length > 0) {
-        query.innerJoin('job.requiredSkills', 'skill', 'skill.id IN (:...skillIds)', {
-          skillIds: filters.skillIds,
-        });
-      }
-
-      if (filters.language && filters.language.length > 0) {
-        query.andWhere('job.requiredLanguages && ARRAY[:...languages]::text[]', {
-          languages: filters.language,
-        });
-      }
-
-      if (filters.isRemote !== undefined) {
-        query.andWhere('job.isRemote = :isRemote', { isRemote: filters.isRemote });
-      }
-
-      if (filters.category) {
-        query.andWhere('job.category = :category', { category: filters.category });
-      }
-
-      if (filters.tags && filters.tags.length > 0) {
-        query.andWhere('job.tags && ARRAY[:...tags]::text[]', { tags: filters.tags });
-      }
-
-      if (filters.isFeatured) {
-        query.andWhere('job.isFeatured = :isFeatured', { isFeatured: filters.isFeatured });
-      }
-
-      if (filters.isUrgent) {
-        query.andWhere('job.isUrgent = :isUrgent', { isUrgent: filters.isUrgent });
-      }
+    if (filters?.search) {
+      query.andWhere('(job.title ILIKE :search OR job.description ILIKE :search)', { search: `%${filters.search}%` });
+    }
+    if (filters?.city) {
+      query.andWhere('job.city ILIKE :city', { city: `%${filters.city}%` });
+    }
+    if (filters?.jobType) {
+      query.andWhere('job.jobType = :jobType', { jobType: filters.jobType });
+    }
+    if (filters?.experienceLevel) {
+      query.andWhere('job.experienceLevel = :experienceLevel', { experienceLevel: filters.experienceLevel });
+    }
+    if (filters?.salaryMin) {
+      query.andWhere('job.salaryMin >= :salaryMin', { salaryMin: filters.salaryMin });
     }
 
     const [jobs, total] = await query
-      .skip(skip)
+      .orderBy('job.createdAt', 'DESC')
+      .skip((page - 1) * limit)
       .take(limit)
-      .orderBy(
-        filters?.sortBy === 'salary' ? 'job.salaryMax' : 'job.createdAt',
-        filters?.sortOrder === 'ASC' ? 'ASC' : 'DESC',
-      )
       .getManyAndCount();
 
-    return {
-      data: jobs,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return { data: jobs, meta: { total, page, limit } };
   }
 
   async findOne(id: string): Promise<Job> {
-    const job = await this.jobRepository.findOne({
+    const job = await this.jobsRepository.findOne({
       where: { id },
-      relations: ['employer', 'requiredSkills', 'applications'],
+      relations: ['employer', 'employer.company', 'requiredSkills'],
     });
-
-    if (!job) {
-      throw new NotFoundException(`Job with ID ${id} not found`);
-    }
-
-    // Increment views
-    await this.jobRepository.increment({ id }, 'views', 1);
-
+    if (!job) throw new NotFoundException('Job not found');
     return job;
   }
 
   async update(id: string, updateJobDto: UpdateJobDto, userId: string, userRole: string): Promise<Job> {
     const job = await this.findOne(id);
-
-    // Check permissions
-    if (userRole !== UserRole.ADMIN && job.employerId !== userId) {
+    if (job.employerId !== userId && userRole !== 'admin') {
       throw new ForbiddenException('You do not have permission to update this job');
     }
-
-    // Update skills if provided
-    if (updateJobDto.skillIds) {
-      const skills = await this.skillRepository.findBy({
-        id: In(updateJobDto.skillIds),
-      });
-      job.requiredSkills = skills;
-      delete updateJobDto.skillIds;
-    }
-
     Object.assign(job, updateJobDto);
-    return await this.jobRepository.save(job);
+    return this.jobsRepository.save(job);
   }
 
   async remove(id: string, userId: string, userRole: string): Promise<void> {
     const job = await this.findOne(id);
-
-    if (userRole !== UserRole.ADMIN && job.employerId !== userId) {
+    if (job.employerId !== userId && userRole !== 'admin') {
       throw new ForbiddenException('You do not have permission to delete this job');
     }
-
-    await this.jobRepository.remove(job);
-  }
-
-  async getEmployerJobs(employerId: string, page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
-    const [jobs, total] = await this.jobRepository.findAndCount({
-      where: { employerId },
-      relations: ['requiredSkills'],
-      skip,
-      take: limit,
-      order: { createdAt: 'DESC' },
-    });
-
-    return {
-      data: jobs,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async toggleSaveJob(userId: string, jobId: string): Promise<{ saved: boolean }> {
-    const existing = await this.savedJobRepository.findOne({
-      where: { userId, jobId },
-    });
-
-    if (existing) {
-      await this.savedJobRepository.remove(existing);
-      return { saved: false };
-    }
-
-    const savedJob = this.savedJobRepository.create({
-      userId,
-      jobId,
-    });
-    await this.savedJobRepository.save(savedJob);
-    return { saved: true };
-  }
-
-  async getSavedJobs(userId: string, page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
-    const [savedJobs, total] = await this.savedJobRepository.findAndCount({
-      where: { userId },
-      relations: ['job', 'job.employer', 'job.requiredSkills'],
-      skip,
-      take: limit,
-      order: { savedAt: 'DESC' },
-    });
-
-    return {
-      data: savedJobs.map(sj => sj.job),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    await this.jobsRepository.remove(job);
   }
 
   async updateStatus(id: string, status: JobStatus, userId: string, userRole: string): Promise<Job> {
     const job = await this.findOne(id);
-
-    if (userRole !== UserRole.ADMIN && job.employerId !== userId) {
-      throw new ForbiddenException('You do not have permission to update this job');
+    if (job.employerId !== userId && userRole !== 'admin') {
+      throw new ForbiddenException('You do not have permission to update job status');
     }
-
     job.status = status;
-    return await this.jobRepository.save(job);
+    return this.jobsRepository.save(job);
   }
 
-  async getSimilarJobs(jobId: string, limit: number = 5): Promise<Job[]> {
-    const job = await this.findOne(jobId);
-    const skillIds = job.requiredSkills.map(skill => skill.id);
+  async getEmployerJobs(employerId: string, page = 1, limit = 10): Promise<{ data: Job[]; meta: any }> {
+    const [jobs, total] = await this.jobsRepository.findAndCount({
+      where: { employerId },
+      relations: ['employer', 'requiredSkills'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data: jobs, meta: { total, page, limit } };
+  }
 
-    if (skillIds.length === 0) {
-      return [];
-    }
+  async incrementViews(jobId: string): Promise<{ success: boolean }> {
+    const job = await this.jobsRepository.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    job.views = (job.views || 0) + 1;
+    await this.jobsRepository.save(job);
+    return { success: true };
+  }
 
-    const similarJobs = await this.jobRepository
+  async isJobSaved(jobId: string, userId: string): Promise<boolean> {
+    const saved = await this.savedJobsRepository.findOne({ where: { jobId, userId } });
+    return !!saved;
+  }
+
+  async saveJob(jobId: string, userId: string): Promise<void> {
+    const job = await this.jobsRepository.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const existing = await this.savedJobsRepository.findOne({ where: { jobId, userId } });
+    if (existing) throw new ConflictException('Job already saved');
+    const savedJob = this.savedJobsRepository.create({ jobId, userId, job, user });
+    await this.savedJobsRepository.save(savedJob);
+  }
+
+  async unsaveJob(jobId: string, userId: string): Promise<void> {
+    const saved = await this.savedJobsRepository.findOne({ where: { jobId, userId } });
+    if (!saved) throw new NotFoundException('Saved job not found');
+    await this.savedJobsRepository.remove(saved);
+  }
+
+  async getSavedJobs(userId: string, page = 1, limit = 10): Promise<{ data: Job[]; meta: any }> {
+    const [savedJobs, total] = await this.savedJobsRepository.findAndCount({
+      where: { userId },
+      relations: ['job', 'job.employer', 'job.requiredSkills'],
+      order: { savedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    const jobs = savedJobs.map(sj => sj.job);
+    return { data: jobs, meta: { total, page, limit } };
+  }
+
+  async getSimilarJobs(jobId: string, limit = 5): Promise<Job[]> {
+    const job = await this.jobsRepository.findOne({
+      where: { id: jobId },
+      relations: ['employer', 'requiredSkills'],
+    });
+    if (!job) throw new NotFoundException('Job not found');
+    return this.jobsRepository
       .createQueryBuilder('job')
-      .leftJoinAndSelect('job.requiredSkills', 'skills')
       .leftJoinAndSelect('job.employer', 'employer')
+      .leftJoinAndSelect('job.requiredSkills', 'skill')
       .where('job.id != :jobId', { jobId })
+      .andWhere('(job.employerId = :employerId OR job.category = :category)', {
+        employerId: job.employerId,
+        category: job.category,
+      })
       .andWhere('job.status = :status', { status: JobStatus.ACTIVE })
-      .andWhere('skills.id IN (:...skillIds)', { skillIds })
+      .orderBy('job.createdAt', 'DESC')
       .take(limit)
       .getMany();
-
-    return similarJobs;
   }
 
   async getStatistics() {
-    const totalJobs = await this.jobRepository.count();
-    const activeJobs = await this.jobRepository.count({
-      where: { status: JobStatus.ACTIVE },
-    });
-    const featuredJobs = await this.jobRepository.count({
-      where: { isFeatured: true },
-    });
-    const urgentJobs = await this.jobRepository.count({
-      where: { isUrgent: true },
-    });
-
-    const jobsByType = await this.jobRepository
+    const totalJobs = await this.jobsRepository.count();
+    const activeJobs = await this.jobsRepository.count({ where: { status: JobStatus.ACTIVE } });
+    const totalApplications = await this.applicationsRepository.count();
+    const topEmployers = await this.jobsRepository
       .createQueryBuilder('job')
-      .select('job.jobType', 'type')
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('job.jobType')
-      .getRawMany();
-
-    const jobsByCountry = await this.jobRepository
-      .createQueryBuilder('job')
-      .select('job.country', 'country')
-      .addSelect('COUNT(*)', 'count')
-      .where('job.status = :status', { status: JobStatus.ACTIVE })
-      .groupBy('job.country')
-      .orderBy('count', 'DESC')
+      .select('job.employerId', 'employerId')
+      .addSelect('COUNT(job.id)', 'jobCount')
+      .groupBy('job.employerId')
+      .orderBy('jobCount', 'DESC')
       .limit(10)
       .getRawMany();
+    return { totalJobs, activeJobs, totalApplications, topEmployers };
+  }
 
-    return {
-      totalJobs,
-      activeJobs,
-      featuredJobs,
-      urgentJobs,
-      jobsByType,
-      jobsByCountry,
-    };
+  async getJobApplications(jobId: string, page = 1, limit = 20) {
+    const [applications, total] = await this.applicationsRepository
+      .createQueryBuilder('app')
+      .leftJoinAndSelect('app.applicant', 'user')
+      .leftJoinAndSelect('app.job', 'job')
+      .where('app.jobId = :jobId', { jobId })
+      .orderBy('app.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+    return { data: applications, meta: { total, page, limit } };
   }
 
   async incrementApplicationsCount(jobId: string): Promise<void> {
-    await this.jobRepository.increment({ id: jobId }, 'applicationsCount', 1);
+    const job = await this.jobsRepository.findOne({ where: { id: jobId } });
+    if (job) {
+      job.applicationsCount = (job.applicationsCount || 0) + 1;
+      await this.jobsRepository.save(job);
+    }
   }
 }

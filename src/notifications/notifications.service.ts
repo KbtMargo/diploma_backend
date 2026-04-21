@@ -172,6 +172,17 @@ async markAsRead(id: string, userId: string): Promise<Notification | null> {
     });
   }
 
+  async sendMessageNotification(receiverId: string, senderName: string, preview: string): Promise<void> {
+    await this.create({
+      userId: receiverId,
+      type: NotificationType.MESSAGE,
+      title: 'Нове повідомлення',
+      content: `${senderName}: ${preview.slice(0, 80)}`,
+      data: {},
+      channels: [NotificationChannel.IN_APP],
+    });
+  }
+
   async cleanupOldNotifications(daysOld: number = 30): Promise<void> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);

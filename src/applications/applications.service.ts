@@ -1,3 +1,4 @@
+// src/applications/applications.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -5,11 +6,12 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Application, ApplicationStatus } from './entities/application.entity';
 import { Job, JobStatus } from '../jobs/entities/job.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { JobsService } from '../jobs/jobs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 
@@ -23,6 +25,7 @@ export class ApplicationsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jobsService: JobsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createApplicationDto: CreateApplicationDto, applicantId: string): Promise<Application> {
@@ -42,7 +45,6 @@ export class ApplicationsService {
       throw new BadRequestException('Application deadline has passed');
     }
 
-    // Check if already applied
     const existingApplication = await this.applicationRepository.findOne({
       where: {
         applicantId,
@@ -51,7 +53,11 @@ export class ApplicationsService {
     });
 
     if (existingApplication) {
-      throw new BadRequestException('You have already applied for this job');
+      if (existingApplication.status !== ApplicationStatus.WITHDRAWN) {
+        throw new BadRequestException('You have already applied for this job');
+      }
+      existingApplication.status = ApplicationStatus.PENDING;
+      return await this.applicationRepository.save(existingApplication);
     }
 
     const application = this.applicationRepository.create({
@@ -62,12 +68,14 @@ export class ApplicationsService {
     });
 
     const savedApplication = await this.applicationRepository.save(application);
-
-    // Increment applications count on job
     await this.jobsService.incrementApplicationsCount(job.id);
 
-    // TODO: Send notification to employer
-    // await this.notifyEmployer(job.employerId, savedApplication);
+    // Notify employer
+    const applicant = await this.userRepository.findOne({ where: { id: applicantId } });
+    const applicantName = applicant ? `${applicant.firstName} ${applicant.lastName}` : 'Кандидат';
+    this.notificationsService
+      .sendNewApplicationNotification(job.employerId, job.title, applicantName, savedApplication.id)
+      .catch(() => {});
 
     return savedApplication;
   }
@@ -152,7 +160,6 @@ export class ApplicationsService {
       throw new NotFoundException('Application not found');
     }
 
-    // Check permissions
     if (
       userRole !== UserRole.ADMIN &&
       application.applicantId !== userId &&
@@ -172,7 +179,6 @@ export class ApplicationsService {
   ): Promise<Application> {
     const application = await this.findOne(id, userId, userRole);
 
-    // Check if user is employer or admin
     if (userRole !== UserRole.ADMIN && application.job.employerId !== userId) {
       throw new ForbiddenException('You do not have permission to update this application');
     }
@@ -189,8 +195,10 @@ export class ApplicationsService {
 
     const updatedApplication = await this.applicationRepository.save(application);
 
-    // TODO: Send notification to applicant about status change
-    // await this.notifyApplicant(application.applicantId, updatedApplication, oldStatus);
+    // Notify applicant of status change
+    this.notificationsService
+      .sendApplicationStatusUpdate(application.applicantId, application.job.title, updateStatusDto.status, application.id)
+      .catch(() => {});
 
     return updatedApplication;
   }
@@ -269,7 +277,14 @@ export class ApplicationsService {
       total,
       byStatus,
       applicationsByDay,
-      averageResponseTime: averageResponseTime?.avgTime ? Math.round(averageResponseTime.avgTime / 3600) : null, // in hours
+      averageResponseTime: averageResponseTime?.avgTime ? Math.round(averageResponseTime.avgTime / 3600) : null,
     };
+  }
+
+  async hasUserApplied(jobId: string, userId: string): Promise<boolean> {
+    const application = await this.applicationRepository.findOne({
+      where: { jobId, applicantId: userId },
+    });
+    return !!application && application.status !== ApplicationStatus.WITHDRAWN;
   }
 }

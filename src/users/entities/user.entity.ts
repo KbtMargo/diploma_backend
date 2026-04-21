@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
   ManyToMany,
   JoinTable,
 } from 'typeorm';
@@ -14,6 +15,7 @@ import { Application } from 'src/applications/entities/application.entity';
 import { SavedJob } from 'src/jobs/entities/saved-job.entity';
 import { Skill } from 'src/skills/entities/skill.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
+import { Company } from 'src/companies/entities/company.entity';
 
 export enum UserRole {
   JOB_SEEKER = 'job_seeker',
@@ -145,6 +147,9 @@ export class User {
 
   @OneToMany(() => SavedJob, (savedJob) => savedJob.user)
   savedJobs: SavedJob[];
+
+  @OneToOne(() => Company, (company) => company.owner)
+  company: Company;
 
   @CreateDateColumn()
   createdAt: Date;

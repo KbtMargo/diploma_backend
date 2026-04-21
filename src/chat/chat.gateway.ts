@@ -12,6 +12,7 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @WebSocketGateway({
   cors: {
@@ -31,6 +32,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly chatService: ChatService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -85,11 +87,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       type: data.type as any,
     });
 
-    // Відправити відправнику
+    // Відправити відправнику та отримувачу
     client.emit('new_message', message);
-
-    // Відправити отримувачу якщо онлайн
     this.server.to(`user_${data.receiverId}`).emit('new_message', message);
+
+    // Оновити лічильник непрочитаних у отримувача
+    const receiverUnread = await this.chatService.getUnreadCount(data.receiverId);
+    this.server.to(`user_${data.receiverId}`).emit('unread_count', { count: receiverUnread });
+    this.server.to(`user_${data.receiverId}`).emit('notification_update');
+
+    // Зберегти сповіщення в БД
+    this.notificationsService
+      .sendMessageNotification(data.receiverId, `Нове повідомлення`, data.content)
+      .catch(() => {});
 
     return message;
   }
@@ -132,6 +142,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     await this.chatService.markAsRead(data.roomId, userId);
     client.emit('marked_read', { roomId: data.roomId });
+    const unreadCount = await this.chatService.getUnreadCount(userId);
+    this.server.to(`user_${userId}`).emit('unread_count', { count: unreadCount });
   }
 
   @SubscribeMessage('typing')

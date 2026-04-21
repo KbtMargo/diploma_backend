@@ -27,8 +27,9 @@ app.useStaticAssets(join(process.cwd(), 'uploads'), {
 });
 
   // решта вашого коду без змін...
+  const isDev = configService.get('NODE_ENV', 'development') !== 'production';
   app.enableCors({
-    origin: configService.get('FRONTEND_URL', 'http://localhost:3001'),
+    origin: isDev ? true : configService.get('FRONTEND_URL', 'http://localhost:3000'),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

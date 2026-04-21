@@ -1,31 +1,27 @@
-// backend/src/modules/jobs/jobs.controller.ts
+// src/jobs/jobs.controller.ts
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-  HttpCode,
-  HttpStatus,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { UserRole } from 'src/users/entities/user.entity';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from '../users/entities/user.entity';
 import { CreateJobDto } from './dto/create-job.dto';
 import { SearchJobsDto } from './dto/search-jobs.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
+import { ApplicationsService } from '../applications/applications.service';
+import { JobStatus } from './entities/job.entity';
+import { CreateApplicationDto } from '../applications/dto/create-application.dto';
+
 @ApiTags('jobs')
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly applicationsService: ApplicationsService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -98,23 +94,61 @@ export class JobsController {
     return this.jobsService.remove(id, req.user.userId, req.user.role);
   }
 
-  @Post(':id/save')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Save or unsave a job' })
-  toggleSave(@Param('id') id: string, @Request() req) {
-    return this.jobsService.toggleSaveJob(req.user.userId, id);
-  }
-
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update job status' })
-  updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: any,
+  updateStatus(@Param('id') id: string, @Body('status') status: JobStatus, @Request() req) {
+    return this.jobsService.updateStatus(id, status, req.user.userId, req.user.role);
+  }
+
+  @Post(':id/view')
+  async incrementView(@Param('id') jobId: string) {
+    return this.jobsService.incrementViews(jobId);
+  }
+
+  @Get(':id/saved')
+  @UseGuards(JwtAuthGuard)
+  async checkIfSaved(@Param('id') jobId: string, @Request() req) {
+    const isSaved = await this.jobsService.isJobSaved(jobId, req.user.userId);
+    return { isSaved };
+  }
+
+  @Post(':id/save')
+  @UseGuards(JwtAuthGuard)
+  async saveJob(@Param('id') jobId: string, @Request() req) {
+    await this.jobsService.saveJob(jobId, req.user.userId);
+    return { saved: true };
+  }
+
+  @Delete(':id/save')
+  @UseGuards(JwtAuthGuard)
+  async unsaveJob(@Param('id') jobId: string, @Request() req) {
+    await this.jobsService.unsaveJob(jobId, req.user.userId);
+    return { saved: false };
+  }
+
+  @Post(':id/apply')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.JOB_SEEKER)
+  async applyToJob(
+    @Param('id') jobId: string,
+    @Body() data: { coverLetter: string; expectedSalary?: number; expectedSalaryCurrency?: string },
     @Request() req,
   ) {
-    return this.jobsService.updateStatus(id, status, req.user.userId, req.user.role);
+    const createDto = new CreateApplicationDto();
+    createDto.jobId = jobId;
+    createDto.coverLetter = data.coverLetter;
+    createDto.expectedSalary = data.expectedSalary;
+    createDto.expectedSalaryCurrency = data.expectedSalaryCurrency || 'USD';
+    const application = await this.applicationsService.create(createDto, req.user.userId);
+    return { success: true, applicationId: application.id };
+  }
+
+  @Get('applications/check/:id')
+  @UseGuards(JwtAuthGuard)
+  async checkIfApplied(@Param('id') jobId: string, @Request() req) {
+    const hasApplied = await this.applicationsService.hasUserApplied(jobId, req.user.userId);
+    return { hasApplied };
   }
 }

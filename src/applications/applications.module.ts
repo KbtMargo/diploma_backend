@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 
@@ -16,7 +16,7 @@ import { Application } from './entities/application.entity';
     BullModule.registerQueue({
       name: 'applications',
     }),
-    JobsModule,
+    forwardRef(() => JobsModule),
     NotificationsModule,
   ],
   controllers: [ApplicationsController],
