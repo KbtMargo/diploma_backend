@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsNumber, IsArray, IsBoolean, IsEnum, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { JobType, ExperienceLevel, WorkFormat } from '../entities/job.entity';
 
 export class SearchJobsDto {
@@ -35,18 +35,21 @@ export class SearchJobsDto {
 
   @ApiProperty({ required: false, enum: JobType, isArray: true })
   @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value]))
   @IsArray()
   @IsEnum(JobType, { each: true })
   jobType?: JobType[];
 
   @ApiProperty({ required: false, enum: ExperienceLevel, isArray: true })
   @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value]))
   @IsArray()
   @IsEnum(ExperienceLevel, { each: true })
   experienceLevel?: ExperienceLevel[];
 
   @ApiProperty({ required: false, enum: WorkFormat, isArray: true })
   @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value]))
   @IsArray()
   @IsEnum(WorkFormat, { each: true })
   workFormat?: WorkFormat[];
@@ -71,6 +74,7 @@ export class SearchJobsDto {
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value]))
   @IsArray()
   @IsString({ each: true })
   language?: string[];

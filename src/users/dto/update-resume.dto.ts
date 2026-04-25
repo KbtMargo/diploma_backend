@@ -1,89 +1,84 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsOptional, IsArray, ValidateNested,
+  IsString, IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class EducationDto {
-  @ApiProperty()
+  @ApiProperty() @IsString()
   institution: string;
 
-  @ApiProperty()
+  @ApiProperty() @IsString()
   degree: string;
 
-  @ApiProperty()
+  @ApiProperty() @IsString()
   field: string;
 
-  @ApiProperty()
-  startDate: Date;
+  @ApiProperty() @IsString()
+  startDate: string;
 
-  @ApiProperty()
-  endDate: Date;
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
+  endDate?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   grade?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   description?: string;
 }
 
 class WorkExperienceDto {
-  @ApiProperty()
+  @ApiProperty() @IsString()
   company: string;
 
-  @ApiProperty()
+  @ApiProperty() @IsString()
   position: string;
 
-  @ApiProperty()
-  startDate: Date;
+  @ApiProperty() @IsString()
+  startDate: string;
 
-  @ApiProperty({ required: false })
-  endDate?: Date;
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
+  endDate?: string;
 
-  @ApiProperty()
+  @ApiProperty() @IsBoolean()
   current: boolean;
 
-  @ApiProperty()
+  @ApiProperty() @IsString()
   description: string;
 
   @ApiProperty({ required: false, type: [String] })
+  @IsOptional() @IsArray() @IsString({ each: true })
   achievements?: string[];
 }
 
 class PortfolioDto {
-  @ApiProperty()
+  @ApiProperty() @IsString()
   title: string;
 
-  @ApiProperty()
+  @ApiProperty() @IsString()
   description: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   url?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   fileUrl?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
   fileType?: string;
 }
 
 export class UpdateResumeDto {
   @ApiProperty({ required: false, type: [EducationDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => EducationDto)
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => EducationDto)
   education?: EducationDto[];
 
   @ApiProperty({ required: false, type: [WorkExperienceDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => WorkExperienceDto)
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => WorkExperienceDto)
   workExperience?: WorkExperienceDto[];
 
   @ApiProperty({ required: false, type: [PortfolioDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PortfolioDto)
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PortfolioDto)
   portfolio?: PortfolioDto[];
 }

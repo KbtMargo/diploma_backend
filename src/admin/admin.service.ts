@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, ILike } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Job, JobStatus } from '../jobs/entities/job.entity';
 import { Company, CompanyStatus } from '../companies/entities/company.entity';
 import { Application, ApplicationStatus } from '../applications/entities/application.entity';
+import { Skill } from '../skills/entities/skill.entity';
 import { AuditLog, AuditAction } from './entities/audit-log.entity';
 
 @Injectable()
@@ -18,6 +19,8 @@ export class AdminService {
     private readonly companyRepository: Repository<Company>,
     @InjectRepository(Application)
     private readonly applicationRepository: Repository<Application>,
+    @InjectRepository(Skill)
+    private readonly skillRepository: Repository<Skill>,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
@@ -248,6 +251,45 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  async suspendCompany(id: string, adminId: string): Promise<Company> {
+    const company = await this.companyRepository.findOne({ where: { id } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    const oldStatus = company.status;
+    company.isVerified = false;
+    company.status = CompanyStatus.SUSPENDED;
+
+    const updated = await this.companyRepository.save(company);
+
+    await this.logAudit({
+      userId: adminId,
+      action: AuditAction.COMPANY_SUSPENDED,
+      entityType: 'company',
+      entityId: id,
+      oldData: { status: oldStatus, isVerified: true },
+      newData: { status: CompanyStatus.SUSPENDED, isVerified: false },
+    });
+
+    return updated;
+  }
+
+  async getTopSkills(limit = 10): Promise<{ name: string; count: number }[]> {
+    const rows = await this.skillRepository
+      .createQueryBuilder('skill')
+      .innerJoin('job_skills', 'js', 'js.skill_id = skill.id')
+      .innerJoin('jobs', 'job', 'job.id = js.job_id AND job.status = :status', {
+        status: JobStatus.ACTIVE,
+      })
+      .select('skill.name', 'name')
+      .addSelect('COUNT(job.id)', 'count')
+      .groupBy('skill.id')
+      .orderBy('count', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((r) => ({ name: r.name, count: Number(r.count) }));
   }
 
   // Dashboard Statistics

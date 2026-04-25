@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Skill } from 'src/skills/entities/skill.entity';
 import { Repository, In } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateResumeDto } from './dto/update-resume.dto';
 import { UploadService } from 'src/common/upload.service';
@@ -149,6 +149,23 @@ export class UsersService {
     return { resumeUrl };
   }
 
+  async deleteResume(userId: string) {
+    const user = await this.findById(userId);
+    if (user.resumeUrl) {
+      this.uploadService.deleteFile(user.resumeUrl);
+      user.resumeUrl = null;
+      await this.userRepository.save(user);
+    }
+    return { message: 'Resume deleted' };
+  }
+
+  async uploadPortfolioFile(userId: string, file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file provided');
+    const fileUrl = this.uploadService.savePortfolioFile(file, userId);
+    const fileType = file.mimetype.startsWith('image/') ? 'image' : 'document';
+    return { fileUrl, fileType };
+  }
+
   async toggleSavedJob(userId: string, jobId: string) {
     await this.findById(userId);
     return { message: 'Job saved successfully' };
@@ -171,6 +188,48 @@ export class UsersService {
       activeApplications: 0,
       savedJobs: 0,
       profileViews: 0,
+    };
+  }
+
+  async searchCandidates(
+    filters: { search?: string; country?: string; city?: string; skills?: string[]; languages?: string[] },
+    page = 1,
+    limit = 10,
+  ) {
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.skills', 'skill')
+      .where('user.role = :role', { role: UserRole.JOB_SEEKER })
+      .andWhere('user.isActive = true');
+
+    if (filters.search) {
+      query.andWhere(
+        '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.summary ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+    if (filters.country) {
+      query.andWhere('user.country ILIKE :country', { country: `%${filters.country}%` });
+    }
+    if (filters.city) {
+      query.andWhere('user.city ILIKE :city', { city: `%${filters.city}%` });
+    }
+    if (filters.skills && filters.skills.length > 0) {
+      query.andWhere('skill.id IN (:...skillIds)', { skillIds: filters.skills });
+    }
+    if (filters.languages && filters.languages.length > 0) {
+      query.andWhere('user.languages && :languages::text[]', { languages: filters.languages });
+    }
+
+    const [users, total] = await query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('user.createdAt', 'DESC')
+      .getManyAndCount();
+
+    return {
+      data: users.map(({ password: _, ...rest }) => rest),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 }

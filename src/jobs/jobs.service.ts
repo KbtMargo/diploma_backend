@@ -1,11 +1,12 @@
 // src/jobs/jobs.service.ts
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Job, JobStatus } from './entities/job.entity';
 import { SavedJob } from './entities/saved-job.entity';
 import { User } from '../users/entities/user.entity';
 import { Application } from '../applications/entities/application.entity';
+import { Skill } from '../skills/entities/skill.entity';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { SearchJobsDto } from './dto/search-jobs.dto';
@@ -21,10 +22,16 @@ export class JobsService {
     private usersRepository: Repository<User>,
     @InjectRepository(Application)
     private applicationsRepository: Repository<Application>,
+    @InjectRepository(Skill)
+    private skillRepository: Repository<Skill>,
   ) {}
 
   async create(createJobDto: CreateJobDto, employerId: string): Promise<Job> {
-    const job = this.jobsRepository.create({ ...createJobDto, employerId });
+    const { skillIds, ...jobData } = createJobDto;
+    const job = this.jobsRepository.create({ ...jobData, employerId });
+    if (skillIds && skillIds.length > 0) {
+      job.requiredSkills = await this.skillRepository.findBy({ id: In(skillIds) });
+    }
     return this.jobsRepository.save(job);
   }
 
@@ -38,17 +45,32 @@ export class JobsService {
     if (filters?.search) {
       query.andWhere('(job.title ILIKE :search OR job.description ILIKE :search)', { search: `%${filters.search}%` });
     }
+    if (filters?.country) {
+      query.andWhere('job.country ILIKE :country', { country: `%${filters.country}%` });
+    }
     if (filters?.city) {
       query.andWhere('job.city ILIKE :city', { city: `%${filters.city}%` });
     }
-    if (filters?.jobType) {
-      query.andWhere('job.jobType = :jobType', { jobType: filters.jobType });
+    if (filters?.jobType?.length) {
+      query.andWhere('job.jobType IN (:...jobType)', { jobType: filters.jobType });
     }
-    if (filters?.experienceLevel) {
-      query.andWhere('job.experienceLevel = :experienceLevel', { experienceLevel: filters.experienceLevel });
+    if (filters?.experienceLevel?.length) {
+      query.andWhere('job.experienceLevel IN (:...experienceLevel)', { experienceLevel: filters.experienceLevel });
+    }
+    if (filters?.workFormat?.length) {
+      query.andWhere('job.workFormat IN (:...workFormat)', { workFormat: filters.workFormat });
     }
     if (filters?.salaryMin) {
       query.andWhere('job.salaryMin >= :salaryMin', { salaryMin: filters.salaryMin });
+    }
+    if (filters?.salaryMax) {
+      query.andWhere('job.salaryMax <= :salaryMax', { salaryMax: filters.salaryMax });
+    }
+    if (filters?.category) {
+      query.andWhere('job.category = :category', { category: filters.category });
+    }
+    if (filters?.language?.length) {
+      query.andWhere('job.requiredLanguages && :language', { language: filters.language });
     }
 
     const [jobs, total] = await query
@@ -74,7 +96,13 @@ export class JobsService {
     if (job.employerId !== userId && userRole !== 'admin') {
       throw new ForbiddenException('You do not have permission to update this job');
     }
-    Object.assign(job, updateJobDto);
+    const { skillIds, ...jobData } = updateJobDto;
+    Object.assign(job, jobData);
+    if (skillIds !== undefined) {
+      job.requiredSkills = skillIds.length > 0
+        ? await this.skillRepository.findBy({ id: In(skillIds) })
+        : [];
+    }
     return this.jobsRepository.save(job);
   }
 

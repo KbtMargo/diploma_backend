@@ -68,6 +68,33 @@ export class UsersController {
     return this.usersService.getStatistics(req.user.userId);
   }
 
+  @Get('candidates')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Search job seeker candidates (employer)' })
+  searchCandidates(
+    @Query('search') search?: string,
+    @Query('country') country?: string,
+    @Query('city') city?: string,
+    @Query('skills') skills?: string | string[],
+    @Query('languages') languages?: string | string[],
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    const skillIds = skills
+      ? (Array.isArray(skills) ? skills : [skills])
+      : [];
+    const langList = languages
+      ? (Array.isArray(languages) ? languages : [languages])
+      : [];
+    return this.usersService.searchCandidates(
+      { search, country, city, skills: skillIds, languages: langList },
+      +page,
+      +limit,
+    );
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -110,6 +137,24 @@ export class UsersController {
   @ApiOperation({ summary: 'Upload resume PDF' })
   uploadResume(@Request() req, @UploadedFile() file: Express.Multer.File) {
     return this.usersService.uploadResume(req.user.userId, file);
+  }
+
+  @Delete('resume-file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete uploaded resume PDF' })
+  deleteResume(@Request() req) {
+    return this.usersService.deleteResume(req.user.userId);
+  }
+
+  @Post('portfolio-file')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload portfolio file (image/pdf/etc)' })
+  uploadPortfolioFile(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    return this.usersService.uploadPortfolioFile(req.user.userId, file);
   }
 
   @Post('jobs/:jobId/save')

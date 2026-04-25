@@ -21,6 +21,7 @@ export enum AuditAction {
   COMPANY_CREATED = 'company_created',
   COMPANY_UPDATED = 'company_updated',
   COMPANY_VERIFIED = 'company_verified',
+  COMPANY_SUSPENDED = 'company_suspended',
   APPLICATION_REVIEWED = 'application_reviewed',
   SETTINGS_CHANGED = 'settings_changed',
 }

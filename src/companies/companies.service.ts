@@ -59,7 +59,9 @@ export class CompaniesService {
   }
 
   async findAll(page: number = 1, limit: number = 10, filters?: any) {
-    const skip = (page - 1) * limit;
+    const p = Number(page) || 1;
+    const l = Number(limit) || 10;
+    const skip = (p - 1) * l;
     const query = this.companyRepository
       .createQueryBuilder('company')
       .where('company.status IN (:...statuses)', {
@@ -74,11 +76,11 @@ export class CompaniesService {
     }
 
     if (filters?.industry) {
-      query.andWhere('company.industry = :industry', { industry: filters.industry });
+      query.andWhere('company.industry ILIKE :industry', { industry: filters.industry });
     }
 
-    if (filters?.size && filters.size.length > 0) {
-      query.andWhere('company.size IN (:...sizes)', { sizes: filters.size });
+    if (filters?.size) {
+      query.andWhere('company.size = :size', { size: filters.size });
     }
 
     if (filters?.country) {
@@ -89,7 +91,7 @@ export class CompaniesService {
 
     const [companies, total] = await query
       .skip(skip)
-      .take(limit)
+      .take(l)
       .orderBy('company.rating', 'DESC')
       .addOrderBy('company.totalJobsPosted', 'DESC')
       .getManyAndCount();
@@ -97,10 +99,10 @@ export class CompaniesService {
     return {
       data: companies,
       meta: {
-        page,
-        limit,
+        page: p,
+        limit: l,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / l),
       },
     };
   }

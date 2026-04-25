@@ -57,6 +57,27 @@ export class UploadService {
     return `/uploads/documents/${filename}`;
   }
 
+  savePortfolioFile(file: Express.Multer.File, userId: string): string {
+    if (!file) throw new BadRequestException('No file provided');
+
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'application/zip',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Непідтримуваний формат файлу');
+    }
+
+    const dir = join(this.uploadDir, 'portfolio');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+    const filename = `${userId}_${uuidv4()}${extname(file.originalname)}`;
+    const dest = join(dir, filename);
+    renameSync(file.path, dest);
+
+    return `/uploads/portfolio/${filename}`;
+  }
+
   deleteFile(filePath: string): void {
     const fullPath = join(process.cwd(), filePath);
     if (existsSync(fullPath)) {

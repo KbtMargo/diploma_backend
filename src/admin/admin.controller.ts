@@ -122,6 +122,18 @@ export class AdminController {
     return this.adminService.verifyCompany(id, req.user.userId);
   }
 
+  @Put('companies/:id/suspend')
+  @ApiOperation({ summary: 'Suspend company' })
+  suspendCompany(@Param('id') id: string, @Request() req) {
+    return this.adminService.suspendCompany(id, req.user.userId);
+  }
+
+  @Get('skills/top')
+  @ApiOperation({ summary: 'Get top demanded skills' })
+  getTopSkills(@Query('limit') limit = 10) {
+    return this.adminService.getTopSkills(Number(limit));
+  }
+
   @Get('audit-logs')
   @ApiOperation({ summary: 'Get audit logs' })
   getAuditLogs(
