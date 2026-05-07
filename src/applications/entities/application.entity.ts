@@ -96,6 +96,18 @@ export class Application {
     feedback?: string;
   };
 
+  @Column('jsonb', { nullable: true })
+  aiAnalysis: {
+    score: number;
+    recommendation: 'strong_yes' | 'yes' | 'maybe' | 'no';
+    strengths: string[];
+    gaps: string[];
+    summary: string;
+  } | null;
+
+  @Column({ nullable: true })
+  aiAnalyzedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

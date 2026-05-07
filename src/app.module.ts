@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
+import { AiModule } from './ai/ai.module';
 
 import { User } from './users/entities/user.entity';
 import { Job } from './jobs/entities/job.entity';
@@ -103,6 +104,7 @@ import { EmailModule } from './common/email/email.module';
     AnalyticsModule,
     AdminModule,
     ChatModule,
+    AiModule,
   ],
 })
 export class AppModule {}
