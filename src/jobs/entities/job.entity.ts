@@ -137,6 +137,12 @@ export class Job {
   externalLink: string;
 
   @Column({ default: false })
+  isPaid: boolean;
+
+  @Column({ nullable: true })
+  stipendAmount: number;
+
+  @Column({ default: false })
   isFeatured: boolean;
 
   @Column({ default: false })

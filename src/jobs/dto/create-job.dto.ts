@@ -141,4 +141,15 @@ isFeatured?: boolean;
 @IsBoolean()
 @IsOptional()
 isUrgent?: boolean;
+
+  @ApiProperty({ required: false, description: 'Чи оплачується стажування' })
+  @IsBoolean()
+  @IsOptional()
+  isPaid?: boolean;
+
+  @ApiProperty({ required: false, description: 'Розмір стипендії/стажувальної виплати' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  stipendAmount?: number;
 }

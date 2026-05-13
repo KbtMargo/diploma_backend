@@ -54,7 +54,7 @@ export class AuditLog {
   @Column('jsonb', { nullable: true })
   newData: any;
 
-  @Column('inet', { nullable: true })
+  @Column({ type: 'inet', nullable: true, select: false })
   ipAddress: string;
 
   @Column({ nullable: true })

@@ -66,12 +66,14 @@ async register(registerDto: RegisterDto) {
   const verificationToken = crypto.randomBytes(32).toString('hex');
   const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+  const isStudentEmail = registerDto.email.toLowerCase().endsWith('.edu.ua');
   const user = this.userRepository.create({
     ...registerDto,
     password: hashedPassword,
     role: registerDto.role || UserRole.JOB_SEEKER,
     isActive: true,
     isEmailVerified: false,
+    isStudentVerified: isStudentEmail,
     emailVerificationToken: verificationToken,
     emailVerificationExpires: verificationExpires,
   });
@@ -89,6 +91,7 @@ async register(registerDto: RegisterDto) {
     role: user.role,
     isActive: user.isActive,
     isEmailVerified: user.isEmailVerified,
+    isStudentVerified: user.isStudentVerified,
     createdAt: user.createdAt,
     message: 'Registration successful. Please check your email.',
   };

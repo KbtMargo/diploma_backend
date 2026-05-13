@@ -71,6 +71,9 @@ export class User {
   @Column({ default: false })
   isEmailVerified: boolean;
 
+  @Column({ default: false })
+  isStudentVerified: boolean;
+
   // Email verification
   @Column({ nullable: true })
   emailVerificationToken: string;

@@ -72,6 +72,9 @@ export class JobsService {
     if (filters?.language?.length) {
       query.andWhere('job.requiredLanguages && :language', { language: filters.language });
     }
+    if (filters?.isPaid !== undefined) {
+      query.andWhere('job.isPaid = :isPaid', { isPaid: filters.isPaid });
+    }
 
     const [jobs, total] = await query
       .orderBy('job.createdAt', 'DESC')
