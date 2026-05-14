@@ -87,15 +87,26 @@ import { Message } from './chat/entities/message.entity';
     }),
 
     BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get<number>('REDIS_PORT', 6379),
-        },
-      }),
-      inject: [ConfigService],
-    }),
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (configService: ConfigService) => ({
+    redis: {
+      host: new URL(
+        configService.get<string>('REDIS_URL')!,
+      ).hostname,
+
+      port: Number(
+        new URL(
+          configService.get<string>('REDIS_URL')!,
+        ).port,
+      ),
+
+      password: new URL(
+        configService.get<string>('REDIS_URL')!,
+      ).password,
+    },
+  }),
+}),
 
     AuthModule,
     UsersModule,
