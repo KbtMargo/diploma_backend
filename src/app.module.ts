@@ -30,7 +30,6 @@ import { Notification } from './notifications/entities/notification.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AuditLog } from './admin/entities/audit-log.entity';
 import { Message } from './chat/entities/message.entity';
-import { EmailModule } from './common/email/email.module';
 
 @Module({
   imports: [
@@ -40,36 +39,40 @@ import { EmailModule } from './common/email/email.module';
     }),
 
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get('DB_USERNAME', 'postgres'),
-        password: configService.get('DB_PASSWORD', 'postgres'),
-        database: configService.get('DB_DATABASE', 'youth_job_platform'),
-        entities: [
-          User,
-          RefreshToken,
-          Job,
-          SavedJob,
-          Application,
-          Company,
-          CompanyReview,
-          Skill,
-          SkillCategory,
-          Notification,
-          AuditLog,
-          Message,
-          EmailModule,
-        ],
-        synchronize: configService.get('NODE_ENV') !== 'production',
-        logging: configService.get('NODE_ENV') === 'development',
-        migrations: ['dist/database/migrations/*.js'],
-        migrationsRun: false,
-      }),
-      inject: [ConfigService],
-    }),
+  imports: [ConfigModule],
+  useFactory: (configService: ConfigService) => {
+    const isProduction = configService.get('NODE_ENV') === 'production';
+
+    return {
+      type: 'postgres',
+      url: configService.get<string>('DATABASE_URL'),
+      ssl: isProduction
+        ? { rejectUnauthorized: false }
+        : false,
+
+      entities: [
+        User,
+        RefreshToken,
+        Job,
+        SavedJob,
+        Application,
+        Company,
+        CompanyReview,
+        Skill,
+        SkillCategory,
+        Notification,
+        AuditLog,
+        Message,
+      ],
+
+      synchronize: !isProduction,
+      logging: !isProduction,
+      migrations: ['dist/database/migrations/*.js'],
+      migrationsRun: false,
+    };
+  },
+  inject: [ConfigService],
+}),
 
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
