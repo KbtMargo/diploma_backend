@@ -113,7 +113,7 @@ export class Company {
   @Column({ default: 0 })
   totalJobsPosted: number;
 
-  @Column({ default: 0 })
+  @Column({ type: 'decimal', precision: 3, scale: 1, default: 0 })
   rating: number;
 
   @Column({ default: 0 })

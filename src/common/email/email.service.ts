@@ -126,6 +126,35 @@ export class EmailService {
     await this.send({ to: email, subject: '🎉 Ласкаво просимо на StartWay!', html: this.baseTemplate(content) });
   }
 
+  async sendVerificationEmail(email: string, firstName: string, verifyUrl: string): Promise<void> {
+    const content = `
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:48px;margin-bottom:16px;">✉️</div>
+        <h1 style="color:#1e1b4b;font-size:26px;font-weight:800;margin:0 0 8px;">
+          Підтвердіть email, ${firstName}!
+        </h1>
+        <p style="color:#64748b;font-size:15px;margin:0;">
+          Ваш акаунт створено. Натисніть кнопку нижче, щоб підтвердити адресу електронної пошти.
+        </p>
+      </div>
+
+      <div style="background:#eff6ff;border-left:4px solid #6366f1;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <p style="color:#1e1b4b;font-size:13px;margin:0;">
+          ⏰ <strong>Посилання дійсне 24 години</strong> з моменту реєстрації.
+        </p>
+      </div>
+
+      ${this.button(verifyUrl, '✅ Підтвердити email')}
+
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-top:24px;">
+        <p style="color:#94a3b8;font-size:13px;margin:0;text-align:center;">
+          Якщо ви не реєструвались на StartWay — просто проігноруйте цей лист.
+        </p>
+      </div>
+    `;
+    await this.send({ to: email, subject: '✉️ Підтвердіть вашу пошту — StartWay', html: this.baseTemplate(content) });
+  }
+
   async sendPasswordReset(email: string, firstName: string, resetUrl: string): Promise<void> {
     const content = `
       <div style="text-align:center;margin-bottom:32px;">

@@ -117,6 +117,15 @@ export class CompaniesService {
       throw new NotFoundException('Company not found');
     }
 
+    company.reviewsCount = company.reviews?.length ?? 0;
+    company.totalJobsPosted = company.jobs?.length ?? 0;
+    if (company.reviewsCount > 0) {
+      const sum = company.reviews.reduce((acc, r) => acc + r.rating, 0);
+      company.rating = Math.round((sum / company.reviewsCount) * 10) / 10;
+    } else {
+      company.rating = 0;
+    }
+
     return company;
   }
 

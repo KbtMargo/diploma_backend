@@ -80,7 +80,8 @@ async register(registerDto: RegisterDto) {
 
   await this.userRepository.save(user);
 
-  await this.emailService.sendWelcome(user.email, user.firstName);
+  const verifyUrl = `${this.configService.get('FRONTEND_URL')}/auth/verify-email?token=${verificationToken}`;
+  await this.emailService.sendVerificationEmail(user.email, user.firstName, verifyUrl);
 
   // ← повертаємо тільки безпечні поля
   return {

@@ -84,10 +84,12 @@ export class SearchJobsDto {
   @IsBoolean()
   isRemote?: boolean;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, type: [String] })
   @IsOptional()
-  @IsString()
-  category?: string;
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value]))
+  @IsArray()
+  @IsString({ each: true })
+  category?: string[];
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()

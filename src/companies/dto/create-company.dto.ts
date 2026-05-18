@@ -38,6 +38,11 @@ export class CreateCompanyDto {
   name: string;
 
   @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
+
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;

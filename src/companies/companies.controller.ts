@@ -11,20 +11,28 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
+import { UploadService } from '../common/upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { CreateCompanyDto } from './dto/create-company.dto';   // ← додати
-import { UpdateCompanyDto } from './dto/update-company.dto';   // ← додати
-import { CreateReviewDto } from './dto/create-review.dto'; 
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { UpdateCompanyDto } from './dto/update-company.dto';
+import { CreateReviewDto } from './dto/create-review.dto';
 @ApiTags('companies')
 @Controller('companies')
 export class CompaniesController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(
+    private readonly companiesService: CompaniesService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -88,6 +96,26 @@ export class CompaniesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @Request() req) {
     return this.companiesService.delete(id, req.user.userId, req.user.role);
+  }
+
+  @Post(':id/logo')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload company logo' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('logo'))
+  async uploadLogo(
+    @Param('id') id: string,
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Файл не надано');
+    const company = await this.companiesService.findOne(id);
+    if (company.ownerId !== req.user.userId && req.user.role !== 'admin') {
+      throw new BadRequestException('Немає доступу');
+    }
+    const logoUrl = this.uploadService.saveCompanyLogo(file, id);
+    return this.companiesService.update(id, { logoUrl }, req.user.userId, req.user.role);
   }
 
   @Post(':id/reviews')

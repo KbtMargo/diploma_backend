@@ -7,6 +7,7 @@ import { SavedJob } from './entities/saved-job.entity';
 import { User } from '../users/entities/user.entity';
 import { Application } from '../applications/entities/application.entity';
 import { Skill } from '../skills/entities/skill.entity';
+import { Company } from '../companies/entities/company.entity';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { SearchJobsDto } from './dto/search-jobs.dto';
@@ -24,15 +25,27 @@ export class JobsService {
     private applicationsRepository: Repository<Application>,
     @InjectRepository(Skill)
     private skillRepository: Repository<Skill>,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
   ) {}
+
+  private async syncCompanyJobsCount(employerId: string): Promise<void> {
+    const company = await this.companyRepository.findOne({ where: { ownerId: employerId } });
+    if (!company) return;
+    const count = await this.jobsRepository.count({ where: { employerId } });
+    await this.companyRepository.update(company.id, { totalJobsPosted: count });
+  }
 
   async create(createJobDto: CreateJobDto, employerId: string): Promise<Job> {
     const { skillIds, ...jobData } = createJobDto;
+    if ((jobData.salaryMin ?? 0) > 0 || (jobData.salaryMax ?? 0) > 0 || (jobData.stipendAmount ?? 0) > 0) jobData.isPaid = true;
     const job = this.jobsRepository.create({ ...jobData, employerId });
     if (skillIds && skillIds.length > 0) {
       job.requiredSkills = await this.skillRepository.findBy({ id: In(skillIds) });
     }
-    return this.jobsRepository.save(job);
+    const saved = await this.jobsRepository.save(job);
+    await this.syncCompanyJobsCount(employerId);
+    return saved;
   }
 
   async findAll(page = 1, limit = 10, filters?: SearchJobsDto): Promise<{ data: Job[]; meta: any }> {
@@ -66,8 +79,8 @@ export class JobsService {
     if (filters?.salaryMax) {
       query.andWhere('job.salaryMax <= :salaryMax', { salaryMax: filters.salaryMax });
     }
-    if (filters?.category) {
-      query.andWhere('job.category = :category', { category: filters.category });
+    if (filters?.category?.length) {
+      query.andWhere('job.category IN (:...category)', { category: filters.category });
     }
     if (filters?.language?.length) {
       query.andWhere('job.requiredLanguages && :language', { language: filters.language });
@@ -76,8 +89,11 @@ export class JobsService {
       query.andWhere('job.isPaid = :isPaid', { isPaid: filters.isPaid });
     }
 
+    const sortField = filters?.sortBy === 'salary' ? 'job.salaryMin' : 'job.createdAt';
+    const sortOrder = filters?.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
     const [jobs, total] = await query
-      .orderBy('job.createdAt', 'DESC')
+      .orderBy(sortField, sortOrder)
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -100,6 +116,7 @@ export class JobsService {
       throw new ForbiddenException('You do not have permission to update this job');
     }
     const { skillIds, ...jobData } = updateJobDto;
+    if ((jobData.salaryMin ?? 0) > 0 || (jobData.salaryMax ?? 0) > 0 || (jobData.stipendAmount ?? 0) > 0) jobData.isPaid = true;
     Object.assign(job, jobData);
     if (skillIds !== undefined) {
       job.requiredSkills = skillIds.length > 0
@@ -114,7 +131,9 @@ export class JobsService {
     if (job.employerId !== userId && userRole !== 'admin') {
       throw new ForbiddenException('You do not have permission to delete this job');
     }
+    const employerId = job.employerId;
     await this.jobsRepository.remove(job);
+    await this.syncCompanyJobsCount(employerId);
   }
 
   async updateStatus(id: string, status: JobStatus, userId: string, userRole: string): Promise<Job> {

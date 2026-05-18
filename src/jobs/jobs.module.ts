@@ -10,10 +10,11 @@ import { Job } from './entities/job.entity';
 import { SavedJob } from './entities/saved-job.entity';
 import { Application } from 'src/applications/entities/application.entity';
 import { ApplicationsModule } from 'src/applications/applications.module';
+import { Company } from 'src/companies/entities/company.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Job, SavedJob, Skill, User, Application]),
+    TypeOrmModule.forFeature([Job, SavedJob, Skill, User, Application, Company]),
     BullModule.registerQueue({
       name: 'jobs',
     }),

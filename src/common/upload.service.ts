@@ -57,6 +57,26 @@ export class UploadService {
     return `/uploads/documents/${filename}`;
   }
 
+  saveCompanyLogo(file: Express.Multer.File, companyId: string): string {
+    if (!file) throw new BadRequestException('No file provided');
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Дозволені формати: JPEG, PNG, WebP, SVG');
+    }
+
+    const dir = join(this.uploadDir, 'logos');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+    const filename = `${companyId}${extname(file.originalname)}`;
+    const dest = join(dir, filename);
+
+    if (existsSync(dest)) unlinkSync(dest);
+    renameSync(file.path, dest);
+
+    return `/uploads/logos/${filename}`;
+  }
+
   savePortfolioFile(file: Express.Multer.File, userId: string): string {
     if (!file) throw new BadRequestException('No file provided');
 

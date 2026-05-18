@@ -343,32 +343,31 @@ export class AdminService {
   }
 
   async getPlatformAnalytics(startDate?: Date, endDate?: Date) {
-    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const start = startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const end = endDate || new Date();
 
     const userGrowth = await this.userRepository
       .createQueryBuilder('user')
-      .select("DATE(user.createdAt)", 'date')
+      .select("DATE_TRUNC('month', user.createdAt)", 'date')
       .addSelect('COUNT(*)', 'count')
       .where('user.createdAt BETWEEN :start AND :end', { start, end })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .groupBy("DATE_TRUNC('month', user.createdAt)")
+      .orderBy("DATE_TRUNC('month', user.createdAt)", 'ASC')
       .getRawMany();
 
     const jobPostings = await this.jobRepository
       .createQueryBuilder('job')
-      .select("DATE(job.createdAt)", 'date')
+      .select("DATE_TRUNC('month', job.createdAt)", 'date')
       .addSelect('COUNT(*)', 'count')
       .where('job.createdAt BETWEEN :start AND :end', { start, end })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .groupBy("DATE_TRUNC('month', job.createdAt)")
+      .orderBy("DATE_TRUNC('month', job.createdAt)", 'ASC')
       .getRawMany();
 
     const applicationsByStatus = await this.applicationRepository
       .createQueryBuilder('application')
       .select('application.status', 'status')
       .addSelect('COUNT(*)', 'count')
-      .where('application.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('application.status')
       .getRawMany();
 
@@ -386,6 +385,7 @@ export class AdminService {
       .createQueryBuilder('job')
       .select('job.country', 'country')
       .addSelect('COUNT(*)', 'count')
+      .where('job.country IS NOT NULL')
       .groupBy('job.country')
       .orderBy('count', 'DESC')
       .limit(10)
