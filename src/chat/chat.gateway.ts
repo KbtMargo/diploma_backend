@@ -76,7 +76,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('send_message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { receiverId: string; content: string; type?: string },
+    @MessageBody() data: { receiverId: string; content: string; type?: string; tempId?: string },
   ) {
     const senderId = client.data.userId;
     if (!senderId) return;
@@ -87,8 +87,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       type: data.type as any,
     });
 
-    // Відправити відправнику та отримувачу
-    client.emit('new_message', message);
+    // Echo tempId back to sender so client can replace optimistic message
+    client.emit('new_message', { ...message, tempId: data.tempId });
     this.server.to(`user_${data.receiverId}`).emit('new_message', message);
 
     // Оновити лічильник непрочитаних у отримувача
@@ -119,6 +119,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     client.emit('conversation', conversation);
+
+    // Notify senders that their messages were read when conversation loaded
+    const roomId = this.chatService.getRoomId(userId, data.otherUserId);
+    for (const senderId of conversation.markedReadFrom) {
+      this.server.to(`user_${senderId}`).emit('messages_read', { roomId, readBy: userId });
+    }
+
     return conversation;
   }
 
@@ -140,8 +147,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     if (!userId) return;
 
-    await this.chatService.markAsRead(data.roomId, userId);
+    const senderIds = await this.chatService.markAsRead(data.roomId, userId);
     client.emit('marked_read', { roomId: data.roomId });
+
+    // Notify all senders that their messages were read
+    for (const senderId of senderIds) {
+      this.server.to(`user_${senderId}`).emit('messages_read', { roomId: data.roomId, readBy: userId });
+    }
+
     const unreadCount = await this.chatService.getUnreadCount(userId);
     this.server.to(`user_${userId}`).emit('unread_count', { count: unreadCount });
   }

@@ -43,15 +43,12 @@ export class ChatService {
       take: limit,
     });
 
-    // Позначити як прочитані
-    await this.messageRepository.update(
-      { roomId, receiverId: userId, isRead: false },
-      { isRead: true },
-    );
+    const markedReadFrom = await this.markAsRead(roomId, userId);
 
     return {
       data: messages.reverse(),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      markedReadFrom,
     };
   }
 
@@ -92,11 +89,17 @@ export class ChatService {
     });
   }
 
-  async markAsRead(roomId: string, userId: string): Promise<void> {
+  async markAsRead(roomId: string, userId: string): Promise<string[]> {
+    const unread = await this.messageRepository.find({
+      where: { roomId, receiverId: userId, isRead: false },
+      select: ['senderId'],
+    });
+    if (unread.length === 0) return [];
     await this.messageRepository.update(
       { roomId, receiverId: userId, isRead: false },
       { isRead: true },
     );
+    return [...new Set(unread.map((m) => m.senderId))];
   }
 
   getRoomId(userId1: string, userId2: string): string {
