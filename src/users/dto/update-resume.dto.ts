@@ -21,6 +21,9 @@ class EducationDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString()
   endDate?: string;
 
+  @ApiProperty({ required: false }) @IsOptional() @IsBoolean()
+  current?: boolean;
+
   @ApiProperty({ required: false }) @IsOptional() @IsString()
   grade?: string;
 
@@ -41,11 +44,11 @@ class WorkExperienceDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString()
   endDate?: string;
 
-  @ApiProperty() @IsBoolean()
-  current: boolean;
+  @ApiProperty({ required: false }) @IsOptional() @IsBoolean()
+  current?: boolean;
 
-  @ApiProperty() @IsString()
-  description: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString()
+  description?: string;
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional() @IsArray() @IsString({ each: true })

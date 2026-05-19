@@ -10,16 +10,23 @@ import { User, UserRole } from './entities/user.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateResumeDto } from './dto/update-resume.dto';
 import { UploadService } from 'src/common/upload.service';
+import { ConfigService } from '@nestjs/config';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 @Injectable()
 export class UsersService {
+  private readonly genAI: GoogleGenerativeAI;
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Skill)
     private readonly skillRepository: Repository<Skill>,
     private readonly uploadService: UploadService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.genAI = new GoogleGenerativeAI(this.configService.get('GEMINI_API_KEY'));
+  }
 
   async findAll(page: number = 1, limit: number = 10, filters?: any) {
     const skip = (page - 1) * limit;
@@ -188,6 +195,72 @@ export class UsersService {
       activeApplications: 0,
       savedJobs: 0,
       profileViews: 0,
+    };
+  }
+
+  async parseResumeFile(file: Express.Multer.File) {
+    if (!file?.buffer) throw new BadRequestException('No PDF file provided');
+
+    const prompt = `You are an expert HR system. Extract structured information from this resume PDF.
+The resume may be in any language (Ukrainian, English, Polish, German, etc.) — preserve original content, do not translate.
+Normalize all dates to YYYY-MM-DD. If only year known: YYYY-01-01. If year+month: YYYY-MM-01.
+For ongoing positions with no end date, set "current": true and omit "endDate".
+Extract each skill as a separate item. Only include fields actually present — never invent data.
+
+Respond ONLY with a valid JSON object (no markdown, no extra text):
+{
+  "firstName": "string",
+  "lastName": "string",
+  "email": "string",
+  "phoneNumber": "string",
+  "country": "string",
+  "city": "string",
+  "summary": "professional summary text",
+  "education": [
+    { "institution": "string", "degree": "string", "field": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "grade": "string", "description": "string" }
+  ],
+  "workExperience": [
+    { "company": "string", "position": "string", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "current": false, "description": "string", "achievements": ["string"] }
+  ],
+  "skills": ["skill1", "skill2"],
+  "languages": ["Language1", "Language2"]
+}`;
+
+    const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    let aiResult;
+    try {
+      aiResult = await model.generateContent([
+        {
+          inlineData: {
+            data: file.buffer.toString('base64'),
+            mimeType: 'application/pdf',
+          },
+        },
+        prompt,
+      ]);
+    } catch (err: any) {
+      throw new BadRequestException(`AI error: ${err?.message ?? String(err)}`);
+    }
+    const responseText = aiResult.response.text().trim();
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new BadRequestException('AI could not parse the resume');
+
+    const extracted = JSON.parse(jsonMatch[0]);
+
+    // Match extracted skill names to DB skills (case-insensitive)
+    const extractedSkillNames: string[] = extracted.skills || [];
+    const allSkills = await this.skillRepository.find({ select: ['id', 'name'] });
+    const matchedSkills = allSkills.filter(s =>
+      extractedSkillNames.some(name => name.toLowerCase() === s.name.toLowerCase()),
+    );
+    const matchedNames = new Set(matchedSkills.map(s => s.name.toLowerCase()));
+    const unmatchedSkills = extractedSkillNames.filter(n => !matchedNames.has(n.toLowerCase()));
+
+    return {
+      ...extracted,
+      matchedSkills: matchedSkills.map(s => ({ id: s.id, name: s.name })),
+      unmatchedSkills,
     };
   }
 

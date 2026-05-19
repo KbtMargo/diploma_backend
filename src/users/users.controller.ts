@@ -14,6 +14,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { Roles } from 'src/auth/decorators/roles.decorator';
@@ -117,6 +118,22 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user resume' })
   updateResume(@Request() req, @Body() updateResumeDto: UpdateResumeDto) {
     return this.usersService.updateResume(req.user.userId, updateResumeDto);
+  }
+
+  @Post('parse-resume')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('resume', {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_, file, cb) => {
+      file.mimetype === 'application/pdf' ? cb(null, true) : cb(new Error('Only PDF files allowed'), false);
+    },
+  }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Parse resume PDF with AI and extract profile data' })
+  parseResume(@UploadedFile() file: Express.Multer.File) {
+    return this.usersService.parseResumeFile(file);
   }
 
   @Post('avatar')
