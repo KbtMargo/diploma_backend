@@ -31,12 +31,6 @@ async function main() {
   await DB.initialize();
   console.log('✅ DB connected');
 
-  await DB.query('DELETE FROM applications');
-  await DB.query('DELETE FROM saved_jobs');
-  await DB.query('DELETE FROM job_skills');
-  await DB.query('DELETE FROM jobs');
-  console.log('🗑️  Cleared old jobs');
-
   const userRepo = DB.getRepository(User);
   const jobRepo  = DB.getRepository(Job);
   const skillRepo = DB.getRepository(Skill);

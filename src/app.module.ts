@@ -51,6 +51,9 @@ import { Message } from './chat/entities/message.entity';
       password: configService.get<string>('DB_PASSWORD'),
       database: configService.get<string>('DB_DATABASE'),
       ssl: isProduction ? { rejectUnauthorized: false } : false,
+      synchronize: isProduction
+        ? configService.get('DB_SYNC') === 'true'
+        : true,
 
       entities: [
         User,
@@ -67,7 +70,6 @@ import { Message } from './chat/entities/message.entity';
         Message,
       ],
 
-      synchronize: !isProduction,
       logging: !isProduction,
       migrations: ['dist/database/migrations/*.js'],
       migrationsRun: false,

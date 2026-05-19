@@ -28,8 +28,22 @@ app.useStaticAssets(join(process.cwd(), 'uploads'), {
 
   // решта вашого коду без змін...
   const isDev = configService.get('NODE_ENV', 'development') !== 'production';
+  const frontendUrl = configService.get('FRONTEND_URL', 'http://localhost:3000');
   app.enableCors({
-    origin: isDev ? true : configService.get('FRONTEND_URL', 'http://localhost:3000'),
+    origin: isDev
+      ? true
+      : (origin, callback) => {
+          // Allow Vercel preview deployments and the main domain
+          const allowed = [
+            frontendUrl,
+            /\.vercel\.app$/,
+          ];
+          if (!origin || allowed.some(p => typeof p === 'string' ? p === origin : p.test(origin))) {
+            callback(null, origin || true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
