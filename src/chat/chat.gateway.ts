@@ -16,7 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:3000',
+    origin: true,
     credentials: true,
   },
   namespace: '/chat',
