@@ -1,23 +1,31 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { join, extname } from 'path';
-import { existsSync, mkdirSync, unlinkSync, renameSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UploadService {
   private readonly uploadDir = join(process.cwd(), 'uploads');
 
+  private ensureDir(dir: string): void {
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  }
+
+  private writeFile(dest: string, file: Express.Multer.File): void {
+    writeFileSync(dest, file.buffer);
+  }
+
   saveAvatar(file: Express.Multer.File, userId: string): string {
     if (!file) throw new BadRequestException('No file provided');
 
     const dir = join(this.uploadDir, 'avatars');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    this.ensureDir(dir);
 
     const filename = `${userId}${extname(file.originalname)}`;
     const dest = join(dir, filename);
 
-    if (existsSync(dest)) unlinkSync(dest); // видалити старий
-    renameSync(file.path, dest);
+    if (existsSync(dest)) unlinkSync(dest);
+    this.writeFile(dest, file);
 
     return `/uploads/avatars/${filename}`;
   }
@@ -33,12 +41,12 @@ export class UploadService {
     }
 
     const dir = join(this.uploadDir, 'resumes');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    this.ensureDir(dir);
 
     const filename = `${userId}_${uuidv4()}${extname(file.originalname)}`;
     const dest = join(dir, filename);
 
-    renameSync(file.path, dest);
+    this.writeFile(dest, file);
 
     return `/uploads/resumes/${filename}`;
   }
@@ -47,12 +55,12 @@ export class UploadService {
     if (!file) throw new BadRequestException('No file provided');
 
     const dir = join(this.uploadDir, 'documents');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    this.ensureDir(dir);
 
     const filename = `${uuidv4()}${extname(file.originalname)}`;
     const dest = join(dir, filename);
 
-    renameSync(file.path, dest);
+    this.writeFile(dest, file);
 
     return `/uploads/documents/${filename}`;
   }
@@ -66,13 +74,13 @@ export class UploadService {
     }
 
     const dir = join(this.uploadDir, 'logos');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    this.ensureDir(dir);
 
     const filename = `${companyId}${extname(file.originalname)}`;
     const dest = join(dir, filename);
 
     if (existsSync(dest)) unlinkSync(dest);
-    renameSync(file.path, dest);
+    this.writeFile(dest, file);
 
     return `/uploads/logos/${filename}`;
   }
@@ -89,11 +97,11 @@ export class UploadService {
     }
 
     const dir = join(this.uploadDir, 'portfolio');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    this.ensureDir(dir);
 
     const filename = `${userId}_${uuidv4()}${extname(file.originalname)}`;
     const dest = join(dir, filename);
-    renameSync(file.path, dest);
+    this.writeFile(dest, file);
 
     return `/uploads/portfolio/${filename}`;
   }

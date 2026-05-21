@@ -14,8 +14,10 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
 import { UploadService } from '../common/upload.service';
@@ -103,7 +105,16 @@ export class CompaniesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload company logo' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileInterceptor('logo', {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+      allowed.includes(file.mimetype)
+        ? cb(null, true)
+        : cb(new Error('Only JPEG, PNG, WebP or SVG images are allowed'), false);
+    },
+  }))
   async uploadLogo(
     @Param('id') id: string,
     @Request() req,
@@ -111,8 +122,8 @@ export class CompaniesController {
   ) {
     if (!file) throw new BadRequestException('Файл не надано');
     const company = await this.companiesService.findOne(id);
-    if (company.ownerId !== req.user.userId && req.user.role !== 'admin') {
-      throw new BadRequestException('Немає доступу');
+    if (company.ownerId !== req.user.userId && req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Немає доступу до редагування цієї компанії');
     }
     const logoUrl = this.uploadService.saveCompanyLogo(file, id);
     return this.companiesService.update(id, { logoUrl }, req.user.userId, req.user.role);

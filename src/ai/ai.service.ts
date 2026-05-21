@@ -24,7 +24,7 @@ export class AiService {
     });
 
     if (!application) throw new NotFoundException('Заявку не знайдено');
-    if (application.job.employerId !== employerId) throw new ForbiddenException();
+    if (application.job.employerId !== employerId) throw new ForbiddenException('Можна аналізувати лише заявки на власні вакансії');
 
     const candidate = application.applicant;
     const job = application.job;
@@ -94,7 +94,7 @@ Respond ONLY with a valid JSON object (no markdown fences, no extra text):
     }
 
     if (applications[0].job.employerId !== employerId) {
-      throw new ForbiddenException();
+      throw new ForbiddenException('Можна аналізувати лише заявки на власні вакансії');
     }
 
     let analyzed = 0;

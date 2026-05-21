@@ -6,6 +6,7 @@ import {
   MaxLength,
   IsEnum,
   IsOptional,
+  Matches,
 } from 'class-validator';
 import { UserRole } from 'src/users/entities/user.entity';
 
@@ -29,6 +30,9 @@ export class RegisterDto {
   @ApiProperty({ example: 'StrongP@ssw0rd' })
   @IsString()
   @MinLength(8)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+  })
   password: string;
 
   @ApiProperty({ enum: UserRole, required: false })

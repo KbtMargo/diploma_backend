@@ -50,6 +50,10 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email before logging in');
+    }
+
     const tokens = await this.generateTokens(user);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
@@ -104,7 +108,11 @@ async register(registerDto: RegisterDto) {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid verification token');
+      throw new BadRequestException('Invalid or already used verification token');
+    }
+
+    if (user.isEmailVerified) {
+      return { message: 'Email already verified' };
     }
 
     if (user.emailVerificationExpires < new Date()) {
@@ -112,11 +120,23 @@ async register(registerDto: RegisterDto) {
     }
 
     user.isEmailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationExpires = null;
     await this.userRepository.save(user);
 
     return { message: 'Email verified successfully' };
+  }
+
+  async resendVerificationEmail(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    const genericMsg = { message: 'If the email is registered and unverified, a new verification link has been sent' };
+    if (!user || user.isEmailVerified) return genericMsg;
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await this.userRepository.update(user.id, { emailVerificationToken: verificationToken, emailVerificationExpires: verificationExpires });
+
+    const verifyUrl = `${this.configService.get('FRONTEND_URL')}/auth/verify-email?token=${verificationToken}`;
+    await this.emailService.sendVerificationEmail(user.email, user.firstName, verifyUrl);
+    return genericMsg;
   }
 
   async forgotPassword(email: string) {
@@ -139,7 +159,16 @@ async register(registerDto: RegisterDto) {
     return { message: 'Password reset link sent to your email' };
   }
 
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 8) throw new BadRequestException('Password must be at least 8 characters');
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      throw new BadRequestException('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+    }
+  }
+
   async resetPassword(token: string, newPassword: string) {
+    this.validatePasswordStrength(newPassword);
+
     const user = await this.userRepository.findOne({
       where: { passwordResetToken: token },
     });
@@ -163,6 +192,8 @@ async register(registerDto: RegisterDto) {
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    this.validatePasswordStrength(newPassword);
+
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('User not found');

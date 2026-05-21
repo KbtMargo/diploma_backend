@@ -48,6 +48,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get('JWT_SECRET'),
+        ignoreExpiration: false,
       });
 
       client.data.userId = payload.sub;
@@ -79,7 +80,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { receiverId: string; content: string; type?: string; tempId?: string },
   ) {
     const senderId = client.data.userId;
-    if (!senderId) return;
+    if (!senderId) {
+      client.disconnect();
+      return;
+    }
 
     const message = await this.chatService.sendMessage(senderId, {
       receiverId: data.receiverId,

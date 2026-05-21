@@ -10,6 +10,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +24,7 @@ export class AuthController {
 
   // 1. Реєстрація
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Register new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
   @ApiResponse({ status: 409, description: 'User already exists' })
@@ -38,8 +40,18 @@ export class AuthController {
     return this.authService.verifyEmail(token);
   }
 
-  // 3. Логін
+  // 3. Повторне надсилання листа верифікації
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend email verification link' })
+  async resendVerification(@Body('email') email: string) {
+    return this.authService.resendVerificationEmail(email);
+  }
+
+  // 4. Логін
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'User successfully logged in' })
@@ -48,7 +60,7 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  // 4. Оновлення токену
+  // 5. Оновлення токену
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
@@ -56,7 +68,7 @@ export class AuthController {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
-  // 5. Вихід
+  // 6. Вихід
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -66,15 +78,16 @@ export class AuthController {
     return this.authService.logout(req.user.userId, refreshTokenDto.refreshToken);
   }
 
-  // 6. Забули пароль
+  // 7. Забули пароль
   @Post('forgot-password')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
   async forgotPassword(@Body('email') email: string) {
     return this.authService.forgotPassword(email);
   }
 
-  // 7. Скидання паролю
+  // 8. Скидання паролю
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
@@ -85,7 +98,7 @@ export class AuthController {
     return this.authService.resetPassword(token, newPassword);
   }
 
-  // 8. Зміна паролю (авторизований)
+  // 9. Зміна паролю (авторизований)
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

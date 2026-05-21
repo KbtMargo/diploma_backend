@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -100,7 +101,11 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user by ID' })
-  findById(@Param('id') id: string) {
+  findById(@Param('id') id: string, @Request() req) {
+    const { userId, role } = req.user;
+    if (id !== userId && role === UserRole.JOB_SEEKER) {
+      throw new ForbiddenException('Access denied');
+    }
     return this.usersService.findById(id);
   }
 
@@ -138,7 +143,16 @@ export class UsersController {
 
   @Post('avatar')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      allowed.includes(file.mimetype)
+        ? cb(null, true)
+        : cb(new Error('Only JPEG, PNG, WebP or GIF images are allowed'), false);
+    },
+  }))
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload avatar' })
@@ -148,7 +162,15 @@ export class UsersController {
 
   @Post('resume-file')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('resume'))
+  @UseInterceptors(FileInterceptor('resume', {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_, file, cb) => {
+      file.mimetype === 'application/pdf'
+        ? cb(null, true)
+        : cb(new Error('Only PDF files are allowed'), false);
+    },
+  }))
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload resume PDF' })
@@ -166,7 +188,16 @@ export class UsersController {
 
   @Post('portfolio-file')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      allowed.includes(file.mimetype)
+        ? cb(null, true)
+        : cb(new Error('Only images (JPEG, PNG, WebP) or PDF files are allowed'), false);
+    },
+  }))
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload portfolio file (image/pdf/etc)' })

@@ -78,7 +78,8 @@ export class JobsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update job' })
   update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto, @Request() req) {
@@ -86,7 +87,8 @@ export class JobsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete job' })
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -95,7 +97,8 @@ export class JobsController {
   }
 
   @Put(':id/status')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update job status' })
   updateStatus(@Param('id') id: string, @Body('status') status: JobStatus, @Request() req) {

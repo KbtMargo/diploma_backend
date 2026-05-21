@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Job, JobStatus } from './entities/job.entity';
 import { SavedJob } from './entities/saved-job.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Application } from '../applications/entities/application.entity';
 import { Skill } from '../skills/entities/skill.entity';
 import { Company } from '../companies/entities/company.entity';
@@ -112,7 +112,7 @@ export class JobsService {
 
   async update(id: string, updateJobDto: UpdateJobDto, userId: string, userRole: string): Promise<Job> {
     const job = await this.findOne(id);
-    if (job.employerId !== userId && userRole !== 'admin') {
+    if (job.employerId !== userId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('You do not have permission to update this job');
     }
     const { skillIds, ...jobData } = updateJobDto;
@@ -128,7 +128,7 @@ export class JobsService {
 
   async remove(id: string, userId: string, userRole: string): Promise<void> {
     const job = await this.findOne(id);
-    if (job.employerId !== userId && userRole !== 'admin') {
+    if (job.employerId !== userId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('You do not have permission to delete this job');
     }
     const employerId = job.employerId;
@@ -138,7 +138,7 @@ export class JobsService {
 
   async updateStatus(id: string, status: JobStatus, userId: string, userRole: string): Promise<Job> {
     const job = await this.findOne(id);
-    if (job.employerId !== userId && userRole !== 'admin') {
+    if (job.employerId !== userId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('You do not have permission to update job status');
     }
     job.status = status;
