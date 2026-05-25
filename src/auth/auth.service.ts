@@ -84,10 +84,14 @@ async register(registerDto: RegisterDto) {
 
   await this.userRepository.save(user);
 
-  const verifyUrl = `${this.configService.get('FRONTEND_URL')}/auth/verify-email?token=${verificationToken}`;
-  await this.emailService.sendVerificationEmail(user.email, user.firstName, verifyUrl);
+  let emailSent = true;
+  try {
+    const verifyUrl = `${this.configService.get('FRONTEND_URL')}/auth/verify-email?token=${verificationToken}`;
+    await this.emailService.sendVerificationEmail(user.email, user.firstName, verifyUrl);
+  } catch {
+    emailSent = false;
+  }
 
-  // ← повертаємо тільки безпечні поля
   return {
     id: user.id,
     email: user.email,
@@ -98,7 +102,9 @@ async register(registerDto: RegisterDto) {
     isEmailVerified: user.isEmailVerified,
     isStudentVerified: user.isStudentVerified,
     createdAt: user.createdAt,
-    message: 'Registration successful. Please check your email.',
+    message: emailSent
+      ? 'Registration successful. Please check your email to verify your account.'
+      : 'Registration successful. We could not send a verification email — please use "resend verification" on the login page.',
   };
 }
 
@@ -115,8 +121,8 @@ async register(registerDto: RegisterDto) {
       return { message: 'Email already verified' };
     }
 
-    if (user.emailVerificationExpires < new Date()) {
-      throw new BadRequestException('Verification token expired');
+    if (!user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
+      throw new BadRequestException('Verification token expired. Please request a new one.');
     }
 
     user.isEmailVerified = true;
