@@ -71,33 +71,32 @@ app.useStaticAssets(join(process.cwd(), 'uploads'), {
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
-  if (isDev) {
-    const config = new DocumentBuilder()
-      .setTitle('Youth Job Platform API')
-      .setDescription('API documentation for youth job and internship platform')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .addTag('auth', 'Authentication endpoints')
-      .addTag('users', 'User management')
-      .addTag('jobs', 'Job management')
-      .addTag('applications', 'Job applications')
-      .addTag('companies', 'Company profiles')
-      .addTag('skills', 'Skills management')
-      .addTag('notifications', 'User notifications')
-      .addTag('analytics', 'Platform analytics')
-      .addTag('admin', 'Admin panel')
-      .addTag('chat', 'Real-time messaging')
-      .build();
+  // Swagger available in all environments (required for Railway healthcheck at /api/docs)
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Youth Job Platform API')
+    .setDescription('API documentation for youth job and internship platform')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('users', 'User management')
+    .addTag('jobs', 'Job management')
+    .addTag('applications', 'Job applications')
+    .addTag('companies', 'Company profiles')
+    .addTag('skills', 'Skills management')
+    .addTag('notifications', 'User notifications')
+    .addTag('analytics', 'Platform analytics')
+    .addTag('admin', 'Admin panel')
+    .addTag('chat', 'Real-time messaging')
+    .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true,
-        tagsSorter: 'alpha',
-        operationsSorter: 'alpha',
-      },
-    });
-  }
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
@@ -105,6 +104,6 @@ app.useStaticAssets(join(process.cwd(), 'uploads'), {
   await app.listen(port);
 
   console.log(`Application is running on: http://localhost:${port}`);
-  if (isDev) console.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+  console.log(`Swagger documentation: http://localhost:${port}/api/docs`);
 }
 bootstrap();

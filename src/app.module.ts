@@ -92,9 +92,29 @@ import { Message } from './chat/entities/message.entity';
 BullModule.forRootAsync({
   imports: [ConfigModule],
   inject: [ConfigService],
-  useFactory: (configService: ConfigService) => ({
-    redis: configService.get<string>('REDIS_URL'),
-  }),
+  useFactory: (configService: ConfigService) => {
+    const redisUrl = configService.get<string>('REDIS_URL');
+    if (redisUrl) {
+      // Railway / cloud: parse URL into ioredis options
+      const url = new URL(redisUrl);
+      return {
+        redis: {
+          host: url.hostname,
+          port: parseInt(url.port, 10) || 6379,
+          password: url.password || undefined,
+          username: url.username && url.username !== 'default' ? url.username : undefined,
+          tls: url.protocol === 'rediss:' ? {} : undefined,
+        },
+      };
+    }
+    // Local dev fallback
+    return {
+      redis: {
+        host: configService.get('REDIS_HOST', 'localhost'),
+        port: configService.get<number>('REDIS_PORT', 6379),
+      },
+    };
+  },
 }),
 
     AuthModule,
