@@ -1,7 +1,7 @@
 // src/jobs/jobs.service.ts
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Brackets } from 'typeorm';
 import { Job, JobStatus } from './entities/job.entity';
 import { SavedJob } from './entities/saved-job.entity';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -83,7 +83,13 @@ export class JobsService {
       query.andWhere('job.category IN (:...category)', { category: filters.category });
     }
     if (filters?.language?.length) {
-      query.andWhere('job.requiredLanguages && :language', { language: filters.language });
+      query.andWhere(
+        new Brackets(qb => {
+          filters.language!.forEach((lang, i) => {
+            qb.orWhere(`:lang${i} = ANY(job.requiredLanguages)`, { [`lang${i}`]: lang });
+          });
+        }),
+      );
     }
     if (filters?.isPaid !== undefined) {
       query.andWhere('job.isPaid = :isPaid', { isPaid: filters.isPaid });
@@ -93,7 +99,7 @@ export class JobsService {
     const sortOrder = filters?.sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
     const [jobs, total] = await query
-      .orderBy(sortField, sortOrder)
+      .orderBy(sortField, sortOrder, 'NULLS LAST')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -196,6 +202,57 @@ export class JobsService {
     });
     const jobs = savedJobs.map(sj => sj.job);
     return { data: jobs, meta: { total, page, limit } };
+  }
+
+  async getRecommendations(userId: string, limit = 6): Promise<Job[]> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['skills'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const skillIds = (user.skills ?? []).map(s => s.id);
+    const preferredJobTypes = user.preferredJobTypes ?? [];
+    const preferredCountries = user.preferredCountries ?? [];
+
+    const appliedApps = await this.applicationsRepository.find({
+      where: { applicantId: userId },
+      select: ['jobId'],
+    });
+    const excludeIds = appliedApps.map(a => a.jobId);
+
+    const qb = this.jobsRepository
+      .createQueryBuilder('job')
+      .leftJoinAndSelect('job.employer', 'employer')
+      .leftJoinAndSelect('job.requiredSkills', 'skill')
+      .where('job.status = :status', { status: JobStatus.ACTIVE });
+
+    if (excludeIds.length > 0) {
+      qb.andWhere('job.id NOT IN (:...excludeIds)', { excludeIds });
+    }
+
+    const parts: string[] = [];
+    if (skillIds.length > 0) {
+      parts.push('(SELECT COUNT(*)::int FROM job_skills js WHERE js.job_id = job.id AND js.skill_id IN (:...skillIds)) * 2');
+      qb.setParameter('skillIds', skillIds);
+    }
+    if (preferredJobTypes.length > 0) {
+      parts.push('CASE WHEN job."jobType" IN (:...preferredJobTypes) THEN 3 ELSE 0 END');
+      qb.setParameter('preferredJobTypes', preferredJobTypes);
+    }
+    if (preferredCountries.length > 0) {
+      parts.push('CASE WHEN job.country IN (:...preferredCountries) THEN 2 ELSE 0 END');
+      qb.setParameter('preferredCountries', preferredCountries);
+    }
+
+    const scoreExpr = parts.length > 0 ? parts.join(' + ') : '0';
+
+    return qb
+      .addSelect(`(${scoreExpr})`, 'relevance_score')
+      .orderBy('relevance_score', 'DESC')
+      .addOrderBy('job.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
   }
 
   async getSimilarJobs(jobId: string, limit = 5): Promise<Job[]> {

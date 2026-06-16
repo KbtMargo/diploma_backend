@@ -64,6 +64,14 @@ export class JobsController {
     return this.jobsService.getSavedJobs(req.user.userId, page, limit);
   }
 
+  @Get('recommendations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get personalized job recommendations' })
+  getRecommendations(@Request() req, @Query('limit') limit: number = 6) {
+    return this.jobsService.getRecommendations(req.user.userId, limit);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get job by ID' })
   findOne(@Param('id') id: string) {
