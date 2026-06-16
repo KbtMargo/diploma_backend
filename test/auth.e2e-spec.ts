@@ -146,6 +146,7 @@ describe('Auth Feature (E2E)', () => {
       const existingUser = Object.values(inMemoryUsers)[0] as any;
       existingUser.password = hashed;
       existingUser.isActive = true;
+      existingUser.isEmailVerified = true;
       mockUsersService.findByEmail.mockResolvedValue(existingUser);
 
       mockJwtService.signAsync

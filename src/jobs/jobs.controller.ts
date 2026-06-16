@@ -1,4 +1,3 @@
-// src/jobs/jobs.controller.ts
 import {
   Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
@@ -69,12 +68,6 @@ export class JobsController {
   @ApiOperation({ summary: 'Get job by ID' })
   findOne(@Param('id') id: string) {
     return this.jobsService.findOne(id);
-  }
-
-  @Get(':id/similar')
-  @ApiOperation({ summary: 'Get similar jobs' })
-  getSimilarJobs(@Param('id') id: string, @Query('limit') limit: number = 5) {
-    return this.jobsService.getSimilarJobs(id, limit);
   }
 
   @Put(':id')

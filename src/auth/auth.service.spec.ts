@@ -102,7 +102,7 @@ describe('AuthService (Unit)', () => {
       const hashed = await bcrypt.hash('pass123', 10);
       mockUsersService.findByEmail.mockResolvedValue({
         id: 'uid-1', email: 'user@test.com', password: hashed,
-        role: UserRole.JOB_SEEKER, isActive: true,
+        role: UserRole.JOB_SEEKER, isActive: true, isEmailVerified: true,
       });
       mockJwtService.signAsync
         .mockResolvedValueOnce('access-tkn')

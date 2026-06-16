@@ -92,6 +92,7 @@ async register(registerDto: RegisterDto) {
     emailSent = false;
   }
 
+  const isDev = this.configService.get('NODE_ENV', 'development') !== 'production';
   return {
     id: user.id,
     email: user.email,
@@ -105,6 +106,7 @@ async register(registerDto: RegisterDto) {
     message: emailSent
       ? 'Registration successful. Please check your email to verify your account.'
       : 'Registration successful. We could not send a verification email — please use "resend verification" on the login page.',
+    ...(isDev && { emailVerificationToken: verificationToken }),
   };
 }
 
@@ -126,6 +128,8 @@ async register(registerDto: RegisterDto) {
     }
 
     user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
     await this.userRepository.save(user);
 
     return { message: 'Email verified successfully' };

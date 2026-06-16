@@ -3,12 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { SendMessageDto } from './dto/send-message.dto';
+import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async sendMessage(senderId: string, dto: SendMessageDto): Promise<Message> {
@@ -23,7 +28,23 @@ export class ChatService {
       fileUrl: dto.fileUrl,
     });
 
-    return await this.messageRepository.save(message);
+    const saved = await this.messageRepository.save(message);
+
+    // Notify receiver via email
+    const sender = await this.userRepository.findOne({
+      where: { id: senderId },
+      select: ['firstName', 'lastName'],
+    });
+    const senderName = sender
+      ? `${sender.firstName} ${sender.lastName}`
+      : 'Користувач StartWay';
+    const preview = dto.content || '📎 Файл';
+
+    this.notificationsService
+      .sendMessageNotification(dto.receiverId, senderName, preview)
+      .catch(() => {});
+
+    return saved;
   }
 
   async getConversation(

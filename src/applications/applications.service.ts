@@ -196,9 +196,28 @@ export class ApplicationsService {
     const updatedApplication = await this.applicationRepository.save(application);
 
     // Notify applicant of status change
-    this.notificationsService
-      .sendApplicationStatusUpdate(application.applicantId, application.job.title, updateStatusDto.status, application.id)
-      .catch(() => {});
+    if (
+      updateStatusDto.status === ApplicationStatus.INTERVIEW_SCHEDULED &&
+      updateStatusDto.interviewDetails?.scheduledAt
+    ) {
+      const companyName = application.job.employer
+        ? `${application.job.employer.firstName} ${application.job.employer.lastName}`
+        : 'Роботодавець';
+      this.notificationsService
+        .sendInterviewScheduled(
+          application.applicantId,
+          application.job.title,
+          companyName,
+          new Date(updateStatusDto.interviewDetails.scheduledAt),
+          application.id,
+          updateStatusDto.interviewDetails.meetingLink,
+        )
+        .catch(() => {});
+    } else {
+      this.notificationsService
+        .sendApplicationStatusUpdate(application.applicantId, application.job.title, updateStatusDto.status, application.id)
+        .catch(() => {});
+    }
 
     return updatedApplication;
   }

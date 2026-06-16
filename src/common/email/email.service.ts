@@ -324,6 +324,63 @@ export class EmailService {
     await this.send({ to: email, subject: `📅 Співбесіда заплановано: ${jobTitle} — StartWay`, html: this.baseTemplate(content) });
   }
 
+  async sendNewMessage(
+    email: string,
+    firstName: string,
+    senderName: string,
+    preview: string,
+  ): Promise<void> {
+    const content = `
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:48px;margin-bottom:16px;">💬</div>
+        <h1 style="color:#1e1b4b;font-size:26px;font-weight:800;margin:0 0 8px;">
+          Нове повідомлення!
+        </h1>
+        <p style="color:#64748b;font-size:15px;margin:0;">
+          Привіт, <strong>${firstName}</strong>!
+        </p>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:14px;padding:24px;margin-bottom:24px;">
+        <p style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Від кого</p>
+        <p style="color:#6366f1;font-size:15px;font-weight:700;margin:0 0 16px;">👤 ${senderName}</p>
+        <p style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Повідомлення</p>
+        <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+          <p style="color:#374151;font-size:14px;margin:0;font-style:italic;">"${preview}"</p>
+        </div>
+      </div>
+
+      ${this.button(`${this.configService.get('FRONTEND_URL')}/messages`, '💬 Відповісти', '#8b5cf6')}
+    `;
+    await this.send({ to: email, subject: `💬 Нове повідомлення від ${senderName} — StartWay`, html: this.baseTemplate(content) });
+  }
+
+  async sendGenericNotification(
+    email: string,
+    firstName: string,
+    title: string,
+    content: string,
+  ): Promise<void> {
+    const html = `
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:48px;margin-bottom:16px;">🔔</div>
+        <h1 style="color:#1e1b4b;font-size:24px;font-weight:800;margin:0 0 8px;">
+          ${title}
+        </h1>
+        <p style="color:#64748b;font-size:15px;margin:0;">
+          Привіт, <strong>${firstName}</strong>!
+        </p>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:14px;padding:24px;margin-bottom:24px;">
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0;">${content}</p>
+      </div>
+
+      ${this.button(`${this.configService.get('FRONTEND_URL')}`, '🚀 Відкрити StartWay')}
+    `;
+    await this.send({ to: email, subject: `🔔 ${title} — StartWay`, html: this.baseTemplate(html) });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       const result = await this.transporter.sendMail({

@@ -127,7 +127,7 @@ describe('Auth Integration', () => {
       const hashed = await bcrypt.hash('MyPass123', 10);
       mockUsersService.findByEmail.mockResolvedValue({
         id: 'uid-2', email: 'user@test.com', password: hashed,
-        role: UserRole.JOB_SEEKER, isActive: true,
+        role: UserRole.JOB_SEEKER, isActive: true, isEmailVerified: true,
       });
       mockRefreshTokenRepo.create.mockReturnValue({});
       mockRefreshTokenRepo.save.mockResolvedValue({});

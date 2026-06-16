@@ -13,7 +13,6 @@ import { ApplicationsModule } from './applications/applications.module';
 import { CompaniesModule } from './companies/companies.module';
 import { SkillsModule } from './skills/skills.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
@@ -105,7 +104,6 @@ BullModule.forRootAsync({
     CompaniesModule,
     SkillsModule,
     NotificationsModule,
-    AnalyticsModule,
     AdminModule,
     ChatModule,
     AiModule,

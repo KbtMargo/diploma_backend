@@ -21,7 +21,7 @@ export class NotificationsService {
 
     // Queue for sending via other channels
     await this.notificationQueue.add('send', {
-      notificationId: savedNotification,
+      notificationId: savedNotification.id,
       userId: createNotificationDto.userId,
       channels: createNotificationDto.channels,
     });
@@ -131,9 +131,9 @@ async markAsRead(id: string, userId: string): Promise<Notification | null> {
     await this.create({
       userId,
       type: NotificationType.APPLICATION_STATUS,
-      title: `Application status updated: ${status}`,
-      content: `Your application for "${jobTitle}" has been ${status}`,
-      data: { applicationId, status },
+      title: `Статус заявки оновлено: ${status}`,
+      content: `Вашу заявку на "${jobTitle}" оновлено`,
+      data: { applicationId, status, jobTitle },
       channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL, NotificationChannel.PUSH],
     });
   }
@@ -160,14 +160,15 @@ async markAsRead(id: string, userId: string): Promise<Notification | null> {
     companyName: string,
     interviewDate: Date,
     applicationId: string,
+    meetingLink?: string,
   ): Promise<void> {
-    const formattedDate = interviewDate.toLocaleString();
+    const formattedDate = interviewDate.toLocaleString('uk-UA');
     await this.create({
       userId,
       type: NotificationType.INTERVIEW_SCHEDULED,
-      title: 'Interview scheduled',
-      content: `Your interview for ${jobTitle} at ${companyName} is scheduled for ${formattedDate}`,
-      data: { applicationId, interviewDate: interviewDate.toISOString() },
+      title: 'Співбесіду заплановано',
+      content: `Ваша співбесіда на "${jobTitle}" у ${companyName} заплановано на ${formattedDate}`,
+      data: { applicationId, interviewDate: interviewDate.toISOString(), jobTitle, companyName, meetingLink },
       channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL, NotificationChannel.PUSH],
     });
   }
@@ -178,8 +179,8 @@ async markAsRead(id: string, userId: string): Promise<Notification | null> {
       type: NotificationType.MESSAGE,
       title: 'Нове повідомлення',
       content: `${senderName}: ${preview.slice(0, 80)}`,
-      data: {},
-      channels: [NotificationChannel.IN_APP],
+      data: { senderName, preview: preview.slice(0, 200) },
+      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
     });
   }
 
